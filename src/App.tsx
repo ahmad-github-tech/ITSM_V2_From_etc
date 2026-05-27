@@ -490,7 +490,7 @@ Signatures Registered:
     };
   };
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'workbook' | 'settings' | 'mapping-details' | 'user-onboard'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'workbook' | 'settings' | 'mapping-details' | 'user-onboard' | 'knowledge-base' | 'change-release' | 'problem-management'>('workbook');
   const [trendPeriod, setTrendPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'custom'>('daily');
   const [customStartDate, setCustomStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -4633,13 +4633,16 @@ Guidelines:
       {/* Sidebar Form */}
       <motion.aside 
         initial={false}
-        animate={{ width: isSidebarOpen ? 320 : 0, opacity: isSidebarOpen ? 1 : 0 }}
-        className="glass-panel h-full flex flex-col border-r border-slate-800 shrink-0"
+        animate={{ 
+          width: (activeTab === 'workbook' && isSidebarOpen) ? 320 : 0, 
+          opacity: (activeTab === 'workbook' && isSidebarOpen) ? 1 : 0 
+        }}
+        className="glass-panel h-full flex flex-col border-r border-slate-800 shrink-0 overflow-hidden"
       >
         <div className="p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
           <div className="flex items-center gap-2 mb-8 p-1 border-b border-slate-800 pb-6">
-            <Activity className="w-4.5 h-4.5 text-blue-500 animate-pulse shrink-0" />
-            <span className="font-sans font-black tracking-widest text-[13px] text-white uppercase">ITSM PORTAL</span>
+            <ListTodo className="w-4.5 h-4.5 text-violet-500 shrink-0" />
+            <span className="font-sans font-black tracking-widest text-[12px] text-slate-400 uppercase">TICKET CONSOLE</span>
           </div>
 
           <form onSubmit={handleSaveTask} className="space-y-6">
@@ -5007,51 +5010,221 @@ Guidelines:
         )}
         {/* Top Header / Command Bar */}
         <header className="h-16 glass-panel border-b border-slate-800 px-6 flex items-center justify-between z-20 shrink-0">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-slate-800 rounded-md transition-colors text-slate-400"
-              title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <ChevronRight className={cn("w-5 h-5 transition-transform", isSidebarOpen ? "rotate-180" : "rotate-0")} />
-            </button>
+          
+          {/* Left Portion: Brand Identity & Active Workspace Selector */}
+          <div className="flex items-center gap-4">
             
+            {/* Permanent ITSM Branding */}
+            <div className="flex items-center gap-2 border-r border-slate-800/80 pr-4">
+              <Activity className="w-5 h-5 text-blue-500 animate-pulse shrink-0" />
+              <span className="font-sans font-black tracking-widest text-[13px] text-white uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:inline">ITSM PORTAL</span>
+            </div>
 
-            <div className="flex items-center gap-1 bg-slate-900/60 rounded-lg p-1 border border-slate-800">
+            {/* Active Operational Workspace Selector (The App-Switcher style dropdown) */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsUtilityDropdownOpen(!isUtilityDropdownOpen)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800/80 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-inner",
+                  ['workbook', 'knowledge-base', 'change-release', 'problem-management'].includes(activeTab as string) ? "border-slate-700/80 text-white" : "text-slate-400 hover:text-slate-200"
+                )}
+                title="Switch active operational workspace"
+              >
+                {activeTab === 'workbook' ? (
+                  <>
+                    <ListTodo className="w-4 h-4 text-violet-400 shrink-0" />
+                    <span className="text-violet-400">Ticketing Workspace</span>
+                  </>
+                ) : activeTab === 'knowledge-base' ? (
+                  <>
+                    <BookOpen className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span className="text-sky-455">Knowledge Base</span>
+                  </>
+                ) : activeTab === 'change-release' ? (
+                  <>
+                    <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <span className="text-indigo-400">Change & Release</span>
+                  </>
+                ) : activeTab === 'problem-management' ? (
+                  <>
+                    <Brain className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span className="text-rose-455">RCA & Problems</span>
+                  </>
+                ) : (
+                  <>
+                    <Wrench className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span>Operations Hub</span>
+                  </>
+                )}
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 ml-1 text-slate-500", isUtilityDropdownOpen && "rotate-180")} />
+              </button>
+
+              <AnimatePresence>
+                {isUtilityDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setIsUtilityDropdownOpen(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute left-0 mt-2 w-56 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden text-left"
+                    >
+                      <div className="px-3 py-2 border-b border-slate-800/60 bg-slate-900/40">
+                        <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Active Workspace</span>
+                      </div>
+                      <div className="p-1 space-y-0.5">
+                        <button
+                          onClick={() => {
+                            setActiveTab('workbook');
+                            setIsUtilityDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                            (activeTab as string) === 'workbook' && "bg-slate-900 text-white shadow-md border border-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ListTodo className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                            <span>Ticketing Workspace</span>
+                          </div>
+                          {(activeTab as string) === 'workbook' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveTab('knowledge-base' as any);
+                            setKbSelectedArticle(null);
+                            setIsUtilityDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                            (activeTab as string) === 'knowledge-base' && "bg-slate-900 text-white shadow-md border border-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <span>Knowledge Base</span>
+                          </div>
+                          {(activeTab as string) === 'knowledge-base' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveTab('change-release' as any);
+                            setIsUtilityDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                            (activeTab as string) === 'change-release' && "bg-slate-900 text-white shadow-md border border-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                            <span>Change & Release</span>
+                          </div>
+                          {(activeTab as string) === 'change-release' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveTab('problem-management' as any);
+                            setIsUtilityDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                            (activeTab as string) === 'problem-management' && "bg-slate-900 text-white shadow-md border border-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Brain className="w-3.5 h-3.5 text-rose-450 shrink-0" />
+                            <span>RCA & Problems</span>
+                          </div>
+                          {(activeTab as string) === 'problem-management' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Sidebar toggle button (only shown when Ticketing Workspace is Active) */}
+            {activeTab === 'workbook' && (
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-1.5 hover:bg-slate-800 hover:text-white rounded-lg border border-slate-800 transition-colors text-slate-400 cursor-pointer"
+                title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+              >
+                <ChevronRight className={cn("w-4 h-4 transition-transform", isSidebarOpen ? "rotate-180" : "rotate-0")} />
+              </button>
+            )}
+
+          </div>
+
+          {/* Center-Right Scope Block: Global project & employee filters */}
+          <div className="hidden xl:flex items-center gap-2 bg-slate-950/60 rounded-xl p-1 border border-slate-850">
+            <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-2">Filter Scope:</span>
+             <select 
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
+                value={selectedProject}
+                onChange={e => setSelectedProject(e.target.value)}
+              >
+                {(isManagerOrAdmin || userMappedProjects.length > 1) && (
+                  <option value="All">All Projects</option>
+                )}
+                {projectConfigs
+                  .filter(p => isManagerOrAdmin || userMappedProjects.includes(p.projectId))
+                  .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
+              </select>
+             <select 
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
+                value={selectedEmployee}
+                onChange={e => setSelectedEmployee(e.target.value)}
+              >
+                {availableEmployees.length >= 2 && (
+                  isManagerOrAdmin ? (
+                    <option value="All">All Employees</option>
+                  ) : (
+                    <option value="All">All Colleagues</option>
+                  )
+                )}
+                {availableEmployees.map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+          </div>
+
+          {/* Right portion: Views & Administration tabs */}
+          <div className="flex items-center gap-4">
+            
+            {/* If screen is not xl, show compact filters */}
+            <div className="flex xl:hidden items-center gap-1 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850">
                <select 
-                  className="bg-transparent text-xs font-bold text-slate-300 outline-none px-3 rounded hover:bg-slate-800 border-none transition-colors h-7 cursor-pointer"
+                  className="bg-transparent text-[10px] font-black text-slate-400 outline-none px-2 rounded hover:text-white transition-colors h-6 cursor-pointer"
                   value={selectedProject}
                   onChange={e => setSelectedProject(e.target.value)}
                 >
                   {(isManagerOrAdmin || userMappedProjects.length > 1) && (
-                    <option value="All">All Projects</option>
+                    <option value="All">All Projs</option>
                   )}
                   {projectConfigs
                     .filter(p => isManagerOrAdmin || userMappedProjects.includes(p.projectId))
                     .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
                 </select>
-              <div className="w-[1px] h-4 bg-slate-800 mx-1" />
-               <select 
-                  className="bg-transparent text-xs font-bold text-slate-300 outline-none px-3 rounded hover:bg-slate-800 border-none transition-colors h-7 cursor-pointer"
-                  value={selectedEmployee}
-                  onChange={e => setSelectedEmployee(e.target.value)}
-                >
-                  {availableEmployees.length >= 2 && (
-                    isManagerOrAdmin ? (
-                      <option value="All">All Employees</option>
-                    ) : (
-                      <option value="All">All Project Colleagues</option>
-                    )
-                  )}
-                  {availableEmployees.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 bg-slate-900/60 rounded-lg p-1 border border-slate-800">
+            <div className="flex items-center gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
               <button 
                 onClick={() => setActiveTab('analytics')}
                 className={cn(
@@ -5062,110 +5235,7 @@ Guidelines:
                 <LayoutDashboard className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span className="hidden md:inline">Analytics</span>
               </button>
-              <button 
-                onClick={() => setActiveTab('workbook')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                  activeTab === 'workbook' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
-                )}
-              >
-                <ListTodo className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                <span className="hidden md:inline">My Workbook</span>
-              </button>
 
-              <div className="relative">
-                <button 
-                  onClick={() => setIsUtilityDropdownOpen(!isUtilityDropdownOpen)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
-                    ['knowledge-base', 'change-release', 'problem-management'].includes(activeTab as string) ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/40"
-                  )}
-                >
-                  <Wrench className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span className="hidden md:inline">Utility</span>
-                  <ChevronDown className={cn("w-3 h-3 transition-transform duration-200 ml-0.5 shrink-0", isUtilityDropdownOpen && "rotate-180")} />
-                </button>
-
-                <AnimatePresence>
-                  {isUtilityDropdownOpen && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-40" 
-                        onClick={() => setIsUtilityDropdownOpen(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="absolute left-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden text-left"
-                      >
-                        <div className="px-3 py-2 border-b border-slate-800 bg-slate-950/40">
-                          <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest">Helper Utilities</span>
-                        </div>
-                        <div className="p-1 space-y-0.5">
-                          <button
-                            onClick={() => {
-                              setActiveTab('knowledge-base' as any);
-                              setKbSelectedArticle(null);
-                              setIsUtilityDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
-                              (activeTab as string) === 'knowledge-base' && "bg-slate-850 text-white shadow"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="w-3.5 h-3.5 text-sky-450 shrink-0" />
-                              <span>Knowledge Base</span>
-                            </div>
-                            {(activeTab as string) === 'knowledge-base' && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setActiveTab('change-release' as any);
-                              setIsUtilityDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
-                              (activeTab as string) === 'change-release' && "bg-slate-850 text-white shadow"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                              <span>Change & Release</span>
-                            </div>
-                            {(activeTab as string) === 'change-release' && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                            )}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setActiveTab('problem-management' as any);
-                              setIsUtilityDropdownOpen(false);
-                            }}
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
-                              (activeTab as string) === 'problem-management' && "bg-slate-850 text-white shadow"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Brain className="w-3.5 h-3.5 text-rose-450 shrink-0" />
-                              <span>RCA & Problems</span>
-                            </div>
-                            {(activeTab as string) === 'problem-management' && (
-                              <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                            )}
-                          </button>
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
               {isManagerOrAdmin && (
                 <button 
                   onClick={() => setActiveTab('settings')}
@@ -5178,6 +5248,7 @@ Guidelines:
                   <span className="hidden md:inline">Configuration</span>
                 </button>
               )}
+              
               <button 
                 onClick={() => setActiveTab('mapping-details')}
                 className={cn(
@@ -5188,6 +5259,7 @@ Guidelines:
                 <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span className="hidden md:inline">Mapping Details</span>
               </button>
+              
               {isManagerOrAdmin && (
                 <button 
                   onClick={() => setActiveTab('user-onboard')}
