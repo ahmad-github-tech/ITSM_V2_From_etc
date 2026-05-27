@@ -1140,6 +1140,99 @@ Signatures Registered:
     localStorage.setItem('sflow_change_release_records', JSON.stringify(changeReleaseRecords));
   }, [changeReleaseRecords]);
 
+  // Root Cause & Problem Management States
+  const [problemRecords, setProblemRecords] = useState<any[]>(() => {
+    const saved = localStorage.getItem('sflow_problem_records');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse problem records", e);
+      }
+    }
+    return [
+      {
+        id: 'PRB-1001',
+        title: 'Recurrent Memory Leakage on Recommendations Engine',
+        projectId: 'E-Commerce',
+        status: 'Resolved',
+        impact: 'High',
+        assignedTo: 'Rajesh Kumar',
+        assignedTeam: 'Search & Recs',
+        incidentIds: ['INC-1006'],
+        isKnownError: true,
+        why1: 'Recommendations container crashed with OutOfMemoryError repeatedly.',
+        why2: 'Model loader thread retained previous model instances in heap after hot-reload.',
+        why3: 'Garbage collector (G1GC) could not free references due to strong static registry pointers.',
+        why4: 'The model loader logic lacked a proper lifecycle listener to unregister stale static listeners.',
+        why5: 'Development team used a global static list as a caching mechanism without setting a removal policy or size limit.',
+        rootCause: 'Memory-leak in model loader thread holding on to old ML models upon hot-reload due to static collection retaining references.',
+        interimWorkaround: 'Restart container when JVM heap usage exceeds 85% (automated via health check restarts).',
+        permanentFix: 'Refactored model-loader lifecycle to correctly remove old listener references and implement WeakReferences in caching.',
+        targetDate: '2026-05-10',
+        creationDate: '2026-05-04T12:00:00Z',
+        registeredBy: 'Admin'
+      },
+      {
+        id: 'PRB-1002',
+        title: 'Kafka Connection Failure on CRM Scheduler Startup',
+        projectId: 'Internal-CRM',
+        status: 'Root Cause Identified',
+        impact: 'Medium',
+        assignedTo: 'Rajesh Kumar',
+        assignedTeam: 'Core Integrations',
+        incidentIds: ['INC-1007'],
+        isKnownError: true,
+        why1: 'Scheduler daemon crashed on startup boot sequence.',
+        why2: 'Kafka consumer service failed connection with broker cluster.',
+        why3: 'Service loaded staging bootstrap servers pointing to production VPC.',
+        why4: 'The configuration manager loaded production security credentials inside key-vault.',
+        why5: 'Deployment configuration templates lacked explicit environment variables decoupling, causing the pipeline to fallback to default production profile.',
+        rootCause: 'Lack of environment segregation profiles in staging server bootstrap templates within deployment pipelines.',
+        interimWorkaround: 'Inject environment parameters manually using runtime startup args override.',
+        permanentFix: 'Standardized Helm template values and added verification stage to check profile binding in runner pre-start.',
+        targetDate: '2026-06-05',
+        creationDate: '2026-05-01T10:00:00Z',
+        registeredBy: 'Rajesh Kumar'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sflow_problem_records', JSON.stringify(problemRecords));
+  }, [problemRecords]);
+
+  const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
+  const [editingProblemRecord, setEditingProblemRecord] = useState<any | null>(null);
+
+  // Form states for Problem/RCA
+  const [pmFormTitle, setPmFormTitle] = useState('');
+  const [pmFormProjectId, setPmFormProjectId] = useState('');
+  const [pmFormStatus, setPmFormStatus] = useState('Under Investigation');
+  const [pmFormImpact, setPmFormImpact] = useState('Medium');
+  const [pmFormAssignedTo, setPmFormAssignedTo] = useState('');
+  const [pmFormAssignedTeam, setPmFormAssignedTeam] = useState('');
+  const [pmFormIncidentIds, setPmFormIncidentIds] = useState<string[]>([]);
+  const [pmFormIsKnownError, setPmFormIsKnownError] = useState(false);
+  const [pmFormWhy1, setPmFormWhy1] = useState('');
+  const [pmFormWhy2, setPmFormWhy2] = useState('');
+  const [pmFormWhy3, setPmFormWhy3] = useState('');
+  const [pmFormWhy4, setPmFormWhy4] = useState('');
+  const [pmFormWhy5, setPmFormWhy5] = useState('');
+  const [pmFormRootCause, setPmFormRootCause] = useState('');
+  const [pmFormInterimWorkaround, setPmFormInterimWorkaround] = useState('');
+  const [pmFormPermanentFix, setPmFormPermanentFix] = useState('');
+  const [pmFormTargetDate, setPmFormTargetDate] = useState('');
+
+  // AI draft states
+  const [isPmAiDrafting, setIsPmAiDrafting] = useState(false);
+
+  // Problem management search & filter states
+  const [pmFilterProject, setPmFilterProject] = useState('All');
+  const [pmFilterStatus, setPmFilterStatus] = useState('All');
+  const [pmFilterImpact, setPmFilterImpact] = useState('All');
+  const [pmFilterSearch, setPmFilterSearch] = useState('');
+
   const [isChangeReleaseModalOpen, setIsChangeReleaseModalOpen] = useState(false);
   const [editingReleaseRecord, setEditingReleaseRecord] = useState<any | null>(null);
 
@@ -2382,6 +2475,294 @@ Signatures Registered:
 
     setIsChangeReleaseModalOpen(false);
     setEditingReleaseRecord(null);
+  };
+
+  const resetProblemForm = () => {
+    setPmFormTitle('');
+    setPmFormProjectId('');
+    setPmFormStatus('Under Investigation');
+    setPmFormImpact('Medium');
+    setPmFormAssignedTo('');
+    setPmFormAssignedTeam('');
+    setPmFormIncidentIds([]);
+    setPmFormIsKnownError(false);
+    setPmFormWhy1('');
+    setPmFormWhy2('');
+    setPmFormWhy3('');
+    setPmFormWhy4('');
+    setPmFormWhy5('');
+    setPmFormRootCause('');
+    setPmFormInterimWorkaround('');
+    setPmFormPermanentFix('');
+    setPmFormTargetDate('');
+    setEditingProblemRecord(null);
+  };
+
+  const handleSaveProblemRecord = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pmFormTitle.trim()) {
+      alert('Please provide a descriptive title for the problem.');
+      return;
+    }
+
+    const list = PROJECTS_LIST.length > 0 ? PROJECTS_LIST : ['HR-Portal', 'E-Commerce', 'Internal-CRM', 'Mobile-App'];
+    const currentEmpName = currentLoggedInUserObj?.name || currentUser || 'Admin';
+
+    if (editingProblemRecord) {
+      setProblemRecords(prev => prev.map(p => {
+        if (p.id === editingProblemRecord.id) {
+          return {
+            ...p,
+            title: pmFormTitle.trim(),
+            projectId: pmFormProjectId || p.projectId || list[0],
+            status: pmFormStatus,
+            impact: pmFormImpact,
+            assignedTo: pmFormAssignedTo.trim() || p.assignedTo || currentEmpName,
+            assignedTeam: pmFormAssignedTeam.trim() || p.assignedTeam,
+            incidentIds: pmFormIncidentIds,
+            isKnownError: pmFormIsKnownError,
+            why1: pmFormWhy1.trim(),
+            why2: pmFormWhy2.trim(),
+            why3: pmFormWhy3.trim(),
+            why4: pmFormWhy4.trim(),
+            why5: pmFormWhy5.trim(),
+            rootCause: pmFormRootCause.trim(),
+            interimWorkaround: pmFormInterimWorkaround.trim(),
+            permanentFix: pmFormPermanentFix.trim(),
+            targetDate: pmFormTargetDate,
+            registeredBy: p.registeredBy || currentEmpName
+          };
+        }
+        return p;
+      }));
+    } else {
+      const nextNum = problemRecords.reduce((max, p) => {
+        const num = parseInt(p.id.replace('PRB-', ''), 10);
+        return isNaN(num) ? max : Math.max(max, num);
+      }, 1000) + 1;
+
+      const newRec = {
+        id: `PRB-${nextNum}`,
+        title: pmFormTitle.trim(),
+        projectId: pmFormProjectId || list[0],
+        status: pmFormStatus,
+        impact: pmFormImpact,
+        assignedTo: pmFormAssignedTo.trim() || currentEmpName,
+        assignedTeam: pmFormAssignedTeam.trim(),
+        incidentIds: pmFormIncidentIds,
+        isKnownError: pmFormIsKnownError,
+        why1: pmFormWhy1.trim(),
+        why2: pmFormWhy2.trim(),
+        why3: pmFormWhy3.trim(),
+        why4: pmFormWhy4.trim(),
+        why5: pmFormWhy5.trim(),
+        rootCause: pmFormRootCause.trim(),
+        interimWorkaround: pmFormInterimWorkaround.trim(),
+        permanentFix: pmFormPermanentFix.trim(),
+        targetDate: pmFormTargetDate || format(new Date(), 'yyyy-MM-dd'),
+        creationDate: new Date().toISOString(),
+        registeredBy: currentEmpName
+      };
+
+      setProblemRecords(prev => [newRec, ...prev]);
+    }
+
+    setIsProblemModalOpen(false);
+    resetProblemForm();
+  };
+
+  const handleDeleteProblemRecord = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this root cause / problem record?')) {
+      setProblemRecords(prev => prev.filter(p => p.id !== id));
+    }
+  };
+
+  const handlePmAiDraft = async () => {
+    if (!pmFormTitle.trim() && pmFormIncidentIds.length === 0) {
+      alert('Please fill in at least the Problem Title or select linked incident tickets before drafting via AI.');
+      return;
+    }
+
+    const apiKey = (process.env.GEMINI_API_KEY as string) || '';
+    if (!apiKey) {
+      alert('Gemini API Key is not configured. Please supply GEMINI_API_KEY under Settings or via Secret Configuration.');
+      return;
+    }
+
+    setIsPmAiDrafting(true);
+    try {
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+
+      const linkedIncidentTexts = pmFormIncidentIds.map(incId => {
+        const matchingInc = tasks.find(t => t.ticketId === incId);
+        if (matchingInc) {
+          return `Incident ID: ${matchingInc.ticketId}\nDescription: ${matchingInc.description}\nSolution: ${matchingInc.solution}\nRemarks: ${matchingInc.remarks || 'None'}`;
+        }
+        return `Incident ID: ${incId}`;
+      }).join('\n---\n');
+
+      const systemInstruction = `You are "S-Flow Problem Management Expert", an interactive AI assistant specialized in ITIL Root Cause Analysis and 5 Whys.
+Your goal is to parse an IT Problem Title and its associated Incidents, synthesize a coherent "5 Whys" logical causal sequence (from immediate symptom to structural root cause), and output a structured JSON containing these five Whys, a Root Cause description, an Interim Workaround, and a Permanent Prevention Fix.
+
+You MUST follow this exact JSON response schema and output ONLY clean JSON (no markdown block wrapper like \`\`\`json, just the raw braces):
+{
+  "why1": "immediate failure symptom (e.g. Recommendations engine timed out or crashed with OOM)",
+  "why2": "direct cause of why1 (e.g. static model loader list retained stale cache pointers)",
+  "why3": "why did why2 happen (e.g. gc failed to reclaim memory because pointers were strongly referenced)",
+  "why4": "cause for why3 (e.g. loader did not implement WeakReferences or lifecycle hooks to deregister stale state listeners)",
+  "why5": "structural design error explaining why4 (e.g. lack of architectural caching policies and automated profiling in container startup)",
+  "rootCause": "Professional ITIL Root Cause statement summarizing the 5 Whys",
+  "interimWorkaround": "Short-term temporary action to restore service or mitigate damage",
+  "permanentFix": "Long-term architectural, code, configuration, or process fix to guarantee this never repeats"
+}`;
+
+      const userText = `Problem Title: ${pmFormTitle || 'System Incident Crash'}
+Project: ${pmFormProjectId || 'General'}
+Linked Incidents:
+${linkedIncidentTexts || 'No direct tickets linked.'}
+
+Please perform the 5 Whys and Root Cause analysis for this issue. Ensure it is highly professional, technical, cohesive, and structurally sound.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          { role: 'user', parts: [{ text: userText }] }
+        ],
+        config: {
+          systemInstruction,
+          temperature: 0.2,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const responseText = response.text || '';
+      let cleanText = responseText.trim();
+      if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      }
+      
+      const parsed = JSON.parse(cleanText);
+      setPmFormWhy1(parsed.why1 || '');
+      setPmFormWhy2(parsed.why2 || '');
+      setPmFormWhy3(parsed.why3 || '');
+      setPmFormWhy4(parsed.why4 || '');
+      setPmFormWhy5(parsed.why5 || '');
+      setPmFormRootCause(parsed.rootCause || '');
+      setPmFormInterimWorkaround(parsed.interimWorkaround || '');
+      setPmFormPermanentFix(parsed.permanentFix || '');
+    } catch (e: any) {
+      console.error("AI drafting failed", e);
+      alert(`AI Drafting failed: ${e.message || e}`);
+    } finally {
+      setIsPmAiDrafting(false);
+    }
+  };
+
+  const filteredProblems = useMemo(() => {
+    return problemRecords.filter(rec => {
+      const matchGlobalProject = selectedProject === 'All' || rec.projectId === selectedProject;
+      const matchLocalProject = pmFilterProject === 'All' || rec.projectId === pmFilterProject;
+      const matchProject = matchGlobalProject && matchLocalProject;
+
+      const matchEmployee = selectedEmployee === 'All' || rec.assignedTo === selectedEmployee || rec.registeredBy === selectedEmployee;
+      const matchStatus = pmFilterStatus === 'All' || rec.status === pmFilterStatus;
+      const matchImpact = pmFilterImpact === 'All' || rec.impact === pmFilterImpact;
+
+      const q = pmFilterSearch.toLowerCase().trim();
+      const matchQuery = !q ||
+        (rec.title || '').toLowerCase().includes(q) ||
+        (rec.why1 || '').toLowerCase().includes(q) ||
+        (rec.why2 || '').toLowerCase().includes(q) ||
+        (rec.why3 || '').toLowerCase().includes(q) ||
+        (rec.why4 || '').toLowerCase().includes(q) ||
+        (rec.why5 || '').toLowerCase().includes(q) ||
+        (rec.rootCause || '').toLowerCase().includes(q) ||
+        (rec.interimWorkaround || '').toLowerCase().includes(q) ||
+        (rec.permanentFix || '').toLowerCase().includes(q) ||
+        (rec.id || '').toLowerCase().includes(q);
+
+      return matchProject && matchEmployee && matchStatus && matchImpact && matchQuery;
+    });
+  }, [problemRecords, selectedProject, pmFilterProject, selectedEmployee, pmFilterStatus, pmFilterImpact, pmFilterSearch]);
+
+  const pmStats = useMemo(() => {
+    const list = problemRecords.filter(rec => {
+      const matchGlobalProject = selectedProject === 'All' || rec.projectId === selectedProject;
+      const matchLocalProject = pmFilterProject === 'All' || rec.projectId === pmFilterProject;
+      return matchGlobalProject && matchLocalProject;
+    });
+
+    const total = list.length;
+    const underInvest = list.filter(p => ['Under Investigation', 'Active'].includes(p.status)).length;
+    const knownErrors = list.filter(p => p.isKnownError || p.status === 'Known Error').length;
+    const resolved = list.filter(p => p.status === 'Resolved' || p.status === 'Permanently Fixed').length;
+    const highCritical = list.filter(p => ['High', 'Critical'].includes(p.impact)).length;
+
+    return { total, underInvest, knownErrors, resolved, highCritical };
+  }, [problemRecords, selectedProject, pmFilterProject]);
+
+  const handleExportProblemsExcel = () => {
+    const data = filteredProblems.map(p => ({
+      'Problem ID': p.id,
+      'Title': p.title,
+      'Project': p.projectId,
+      'Status': p.status,
+      'Impact': p.impact,
+      'Assigned Owner': p.assignedTo,
+      'Assigned Team': p.assignedTeam || 'None',
+      'Is Known Error': p.isKnownError ? 'Yes' : 'No',
+      'Incident Links': (p.incidentIds || []).join(', '),
+      'Why 1': p.why1,
+      'Why 2': p.why2,
+      'Why 3': p.why3,
+      'Why 4': p.why4,
+      'Why 5': p.why5,
+      'Structural Root Cause': p.rootCause,
+      'Temporary Workaround': p.interimWorkaround,
+      'Permanent Remediation Fix': p.permanentFix,
+      'Target Date': p.targetDate || 'None',
+      'Created At': p.creationDate ? format(new Date(p.creationDate), 'yyyy-MM-dd') : 'None',
+      'Registered By': p.registeredBy
+    }));
+    exportToExcel([{ name: 'RCA & Problems Journal', data }], `IT_Problem_RCA_Journal_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  };
+
+  const handleExportProblemsPDF = () => {
+    const data = filteredProblems.map(p => ({
+      'ID': p.id,
+      'Problem Title/Summary': p.title,
+      'Project': p.projectId,
+      'Status': p.status,
+      'Impact': p.impact,
+      'Structural Root Cause': p.rootCause || 'Under review',
+      'Permanent Solution Playbook': p.permanentFix || 'Pending resolution'
+    }));
+    exportToPDF([{ name: 'ITIL Problems Registry', data }], `IT_Problem_RCA_Registry_${format(new Date(), 'yyyyMMdd')}.pdf`, [], 'All Problem Horizons');
+  };
+
+  const handleOpenEditProblemModal = (rec: any) => {
+    setPmFormTitle(rec.title);
+    setPmFormProjectId(rec.projectId);
+    setPmFormStatus(rec.status);
+    setPmFormImpact(rec.impact);
+    setPmFormAssignedTo(rec.assignedTo);
+    setPmFormAssignedTeam(rec.assignedTeam || '');
+    setPmFormIncidentIds(rec.incidentIds || []);
+    setPmFormIsKnownError(rec.isKnownError || false);
+    setPmFormWhy1(rec.why1 || '');
+    setPmFormWhy2(rec.why2 || '');
+    setPmFormWhy3(rec.why3 || '');
+    setPmFormWhy4(rec.why4 || '');
+    setPmFormWhy5(rec.why5 || '');
+    setPmFormRootCause(rec.rootCause || '');
+    setPmFormInterimWorkaround(rec.interimWorkaround || '');
+    setPmFormPermanentFix(rec.permanentFix || '');
+    setPmFormTargetDate(rec.targetDate || '');
+    setEditingProblemRecord(rec);
+    setIsProblemModalOpen(true);
   };
 
   const filteredChangeReleases = useMemo(() => {
@@ -4697,7 +5078,7 @@ Guidelines:
                   onClick={() => setIsUtilityDropdownOpen(!isUtilityDropdownOpen)}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap cursor-pointer",
-                    ['knowledge-base', 'change-release'].includes(activeTab as string) ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/40"
+                    ['knowledge-base', 'change-release', 'problem-management'].includes(activeTab as string) ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/40"
                   )}
                 >
                   <Wrench className="w-3.5 h-3.5 text-sky-400 shrink-0" />
@@ -4758,6 +5139,25 @@ Guidelines:
                             </div>
                             {(activeTab as string) === 'change-release' && (
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setActiveTab('problem-management' as any);
+                              setIsUtilityDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                              (activeTab as string) === 'problem-management' && "bg-slate-850 text-white shadow"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Brain className="w-3.5 h-3.5 text-rose-450 shrink-0" />
+                              <span>RCA & Problems</span>
+                            </div>
+                            {(activeTab as string) === 'problem-management' && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                             )}
                           </button>
                         </div>
@@ -8765,6 +9165,784 @@ Guidelines:
                   )}
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Root Cause & Problem Management (5 Whys Analysis) Tab Section */}
+          <AnimatePresence mode="wait">
+            {(activeTab as string) === 'problem-management' && (
+              <motion.div
+                key="problem-management"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -25 }}
+                className="space-y-6 text-left font-sans"
+              >
+                {/* Header Title Section */}
+                <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-rose-500/10 text-rose-400 rounded-2xl">
+                      <Brain className="w-6 h-6 animate-pulse-subtle text-rose-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-white uppercase tracking-tight">Root Cause & Problem Management</h2>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">
+                        ITIL Problem Registry, 5 Whys causal drills, Known Error Database (KEDB) logs, and automated AI RCA drafts.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={handleExportProblemsExcel}
+                      className="btn-secondary flex items-center gap-2 text-xs font-bold font-mono py-1.5 cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700/60"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>XLSX Download</span>
+                    </button>
+                    <button
+                      onClick={handleExportProblemsPDF}
+                      className="btn-secondary flex items-center gap-2 text-xs font-bold font-mono py-1.5 cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700/60"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-rose-455 shrink-0" />
+                      <span>PDF Report</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        resetProblemForm();
+                        setIsProblemModalOpen(true);
+                      }}
+                      className="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all duration-300 shadow-lg shadow-rose-500/20 active:scale-95 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Register Problem</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats Dashboard */}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <KPICard 
+                    label="Problem Registry" 
+                    value={pmStats.total} 
+                    color="text-white" 
+                    className="col-span-1 border border-slate-800 bg-slate-900/20"
+                  />
+                  <KPICard 
+                    label="Under Investigation" 
+                    value={pmStats.underInvest} 
+                    color="text-amber-400" 
+                    className="col-span-1 border border-slate-800 bg-slate-900/20"
+                  />
+                  <KPICard 
+                    label="Known Errors (KEDB)" 
+                    value={pmStats.knownErrors} 
+                    color="text-cyan-400" 
+                    className="col-span-1 border border-slate-800 bg-slate-900/20"
+                  />
+                  <KPICard 
+                    label="Remediated / Fixed" 
+                    value={pmStats.resolved} 
+                    color="text-emerald-400" 
+                    className="col-span-1 border border-slate-800 bg-slate-900/20"
+                  />
+                  <KPICard 
+                    label="High & Critical Impact" 
+                    value={pmStats.highCritical} 
+                    color="text-rose-500 font-bold" 
+                    className="col-span-1 border border-slate-800 bg-slate-900/20"
+                  />
+                </div>
+
+                {/* Collapsible Visual Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-slate-900/20 p-5 rounded-3xl border border-slate-800 select-none">
+                  {/* Left: Problems by Project */}
+                  <div className="chart-container p-4 min-h-[240px] flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-100 uppercase tracking-widest leading-none mb-1">RCA Distribution by Project Segment</h4>
+                      <p className="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-4">Investigated known error vectors mapped by configuration</p>
+                    </div>
+                    <div className="h-44 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={(PROJECTS_LIST.length > 0 ? PROJECTS_LIST : ['HR-Portal', 'E-Commerce', 'Internal-CRM', 'Mobile-App']).map(p => ({
+                            name: p,
+                            Problems: problemRecords.filter(rec => rec.projectId === p).length,
+                            Resolved: problemRecords.filter(rec => rec.projectId === p && ['Resolved', 'Permanently Fixed'].includes(rec.status)).length,
+                          }))}
+                          margin={{ top: 10, right: 10, left: -25, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                          <XAxis dataKey="name" stroke="#64748b" style={{ fontSize: 9, fontFamily: 'monospace' }} />
+                          <YAxis stroke="#64748b" style={{ fontSize: 9, fontFamily: 'monospace' }} />
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '10px' }} />
+                          <Bar dataKey="Problems" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Resolved" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Right: Problems by Impact */}
+                  <div className="chart-container p-4 min-h-[240px] flex flex-col justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-100 uppercase tracking-widest leading-none mb-1">Criticality and Impact Density Split</h4>
+                      <p className="text-[9px] uppercase tracking-wider text-slate-500 font-bold mb-4">Recorded workspace problem logs segmented by impact severity</p>
+                    </div>
+                    <div className="h-44 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={['Critical', 'High', 'Medium', 'Low'].map(imp => ({
+                              name: imp,
+                              value: problemRecords.filter(rec => rec.impact === imp).length
+                            })).filter(d => d.value > 0)}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={65}
+                            paddingAngle={4}
+                            dataKey="value"
+                          >
+                            {['Critical', 'High', 'Medium', 'Low'].map((imp, idx) => {
+                              const colors = ['#ef4444', '#f97316', '#fbbf24', '#3b82f6'];
+                              return <Cell key={`cell-${idx}`} fill={colors[idx]} />;
+                            })}
+                          </Pie>
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '10px' }} />
+                          <Legend wrapperStyle={{ fontSize: '9px', fontFamily: 'monospace' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Query Filters & Search Rail */}
+                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 flex flex-wrap gap-4 items-center justify-between">
+                  <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+                    {/* Search Field */}
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input 
+                        type="text" 
+                        placeholder="Search registry by terms, 5 why keywords, workaround..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-rose-500/50 transition-colors"
+                        value={pmFilterSearch}
+                        onChange={e => setPmFilterSearch(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Project dropdown */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Project:</span>
+                      <select
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 outline-none hover:bg-slate-850 cursor-pointer"
+                        value={pmFilterProject}
+                        onChange={e => setPmFilterProject(e.target.value)}
+                      >
+                        <option value="All">All Projects</option>
+                        {(PROJECTS_LIST.length > 0 ? PROJECTS_LIST : ['HR-Portal', 'E-Commerce', 'Internal-CRM', 'Mobile-App']).map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Status dropdown */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Status:</span>
+                      <select
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 outline-none hover:bg-slate-850 cursor-pointer"
+                        value={pmFilterStatus}
+                        onChange={e => setPmFilterStatus(e.target.value)}
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Under Investigation">Under Investigation</option>
+                        <option value="Active">Active</option>
+                        <option value="Known Error">Known Error</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Permanently Fixed">Permanently Fixed</option>
+                      </select>
+                    </div>
+
+                    {/* Impact dropdown */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Impact:</span>
+                      <select
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 outline-none hover:bg-slate-850 cursor-pointer"
+                        value={pmFilterImpact}
+                        onChange={e => setPmFilterImpact(e.target.value)}
+                      >
+                        <option value="All">All Impacts</option>
+                        <option value="Critical">Critical</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {(pmFilterProject !== 'All' || pmFilterStatus !== 'All' || pmFilterImpact !== 'All' || pmFilterSearch) && (
+                    <button
+                      onClick={() => {
+                        setPmFilterProject('All');
+                        setPmFilterStatus('All');
+                        setPmFilterImpact('All');
+                        setPmFilterSearch('');
+                      }}
+                      className="px-3 py-1.5 rounded-lg border border-slate-850 hover:bg-slate-900 text-[10px] text-slate-400 hover:text-white uppercase font-black tracking-widest transition-colors cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+
+                {/* Problems Records List Feed */}
+                <div className="space-y-5">
+                  {filteredProblems.map(rec => {
+                    const linkedIncCount = (rec.incidentIds || []).length;
+                    return (
+                      <div 
+                        key={rec.id}
+                        className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 hover:border-slate-700/60 transition-all duration-305 flex flex-col xl:flex-row gap-6 relative group overflow-hidden"
+                      >
+                        {/* Decorative side color accent */}
+                        <div className={cn(
+                          "absolute left-0 top-0 bottom-0 w-1",
+                          rec.impact === 'Critical' ? "bg-red-500" :
+                          rec.impact === 'High' ? "bg-orange-500" :
+                          rec.impact === 'Medium' ? "bg-amber-400" : "bg-blue-400"
+                        )} />
+
+                        {/* LEFT SUMMARY PANEL */}
+                        <div className="xl:w-1/3 flex flex-col justify-between space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={cn(
+                                "text-[10px] font-mono px-2 py-0.5 rounded-md font-bold select-all border",
+                                rec.impact === 'Critical' ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                                rec.impact === 'High' ? "bg-orange-500/10 border-orange-500/20 text-orange-400" :
+                                rec.impact === 'Medium' ? "bg-amber-500/10 border-amber-500/20 text-amber-450" :
+                                "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                              )}>
+                                {rec.id}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest leading-none border",
+                                rec.status === 'Resolved' || rec.status === 'Permanently Fixed' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-450" :
+                                rec.status === 'Known Error' ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400" :
+                                "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                              )}>
+                                {rec.status}
+                              </span>
+                              {rec.isKnownError && (
+                                <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-widest leading-none">
+                                  KEDB Logged
+                                </span>
+                              )}
+                            </div>
+                            
+                            <h3 className="text-sm font-black text-white hover:text-rose-400 transition-colors uppercase tracking-wide leading-snug select-text">
+                              {rec.title}
+                            </h3>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              Assessing <span className="text-slate-300 font-black">{rec.projectId}</span> segment
+                            </p>
+                          </div>
+
+                          <div className="space-y-3 pt-3 border-t border-slate-850 text-xs text-left">
+                            <div className="grid grid-cols-2 gap-2 text-[10.5px]">
+                              <div>
+                                <span className="text-slate-500 block uppercase font-bold text-[9px] tracking-wider mb-0.5">Assigned Owner</span>
+                                <span className="text-slate-350 font-semibold">{rec.assignedTo}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block uppercase font-bold text-[9px] tracking-wider mb-0.5">Support Team</span>
+                                <span className="text-slate-350 font-semibold">{rec.assignedTeam || 'Generic Ops'}</span>
+                              </div>
+                            </div>
+
+                            {/* Linked Incidents chips */}
+                            {linkedIncCount > 0 && (
+                              <div>
+                                <span className="text-slate-500 block uppercase font-bold text-[9px] tracking-wider mb-1.5">Linked Incident Tickets ({linkedIncCount})</span>
+                                <div className="flex flex-wrap gap-1.5 select-text">
+                                  {(rec.incidentIds || []).map(incId => (
+                                    <span 
+                                      key={incId}
+                                      className="text-[9px] font-mono px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+                                    >
+                                      {incId}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between text-[10px] text-slate-650 font-mono mt-3">
+                              <span>Registered by: <span className="font-semibold text-slate-500">{rec.registeredBy}</span></span>
+                              <span>{rec.creationDate ? format(new Date(rec.creationDate), 'MMM dd, yyyy') : 'No Date'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-3 border-t border-slate-850">
+                            <button
+                              onClick={() => handleOpenEditProblemModal(rec)}
+                              className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <Pencil className="w-3 h-3 text-sky-450" />
+                              <span>Edit RCA</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProblemRecord(rec.id)}
+                              className="px-3.5 py-1.5 bg-slate-800 hover:bg-red-950/40 text-slate-400 hover:text-red-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5 border border-transparent hover:border-red-900/30 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-500" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* RIGHT 5-WHYS FLOW & REMEDIATION */}
+                        <div className="xl:w-2/3 flex flex-col md:flex-row gap-6 bg-slate-900/20 border border-slate-850 p-5 rounded-2xl select-text">
+                          {/* 5 Whys Visual Ladder */}
+                          <div className="flex-1 space-y-4 relative text-left">
+                            <h4 className="text-[10px] font-black text-rose-450 uppercase tracking-widest mb-3 leading-none flex items-center gap-1.5 border-b border-slate-850 pb-2">
+                              <Brain className="w-3.5 h-3.5" />
+                              <span>Visual 5 Whys Ladder Causal Mapping</span>
+                            </h4>
+
+                            <div className="space-y-3.5 pl-2 relative border-l border-slate-800/80 ml-1.5">
+                              {/* Why 1 */}
+                              <div className="relative pl-5 group/why">
+                                <span className="absolute left-[-6.5px] top-1 w-3.5 h-3.5 rounded-full bg-slate-850 text-slate-400 border border-slate-750 flex items-center justify-center font-bold text-[8px]">1</span>
+                                <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest leading-none mb-0.5">1st Why (Primary Failure Trigger)</p>
+                                <p className="text-xs text-slate-300 font-semibold leading-relaxed">{rec.why1 || 'Unspecified symptom'}</p>
+                              </div>
+                              {/* Why 2 */}
+                              <div className="relative pl-5">
+                                <span className="absolute left-[-6.5px] top-1 w-3.5 h-3.5 rounded-full bg-slate-850 text-slate-400 border border-slate-750 flex items-center justify-center font-bold text-[8px]">2</span>
+                                <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest leading-none mb-0.5">2nd Why (Immediate Cause)</p>
+                                <p className="text-xs text-slate-300 font-semibold leading-relaxed">{rec.why2 || 'Investigation pending'}</p>
+                              </div>
+                              {/* Why 3 */}
+                              <div className="relative pl-5">
+                                <span className="absolute left-[-6.5px] top-1 w-3.5 h-3.5 rounded-full bg-slate-850 text-slate-400 border border-slate-750 flex items-center justify-center font-bold text-[8px]">3</span>
+                                <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest leading-none mb-0.5">3rd Why (Secondary Chain Link)</p>
+                                <p className="text-xs text-slate-300 font-semibold leading-relaxed">{rec.why3 || 'Investigation pending'}</p>
+                              </div>
+                              {/* Why 4 */}
+                              <div className="relative pl-5">
+                                <span className="absolute left-[-6.5px] top-1 w-3.5 h-3.5 rounded-full bg-slate-850 text-slate-400 border border-slate-750 flex items-center justify-center font-bold text-[8px]">4</span>
+                                <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest leading-none mb-0.5">4th Why (Architectural Context)</p>
+                                <p className="text-xs text-slate-300 font-semibold leading-relaxed">{rec.why4 || 'Investigation pending'}</p>
+                              </div>
+                              {/* Why 5 */}
+                              <div className="relative pl-5">
+                                <span className="absolute left-[-6.5px] top-1.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center font-black text-[8px]">5</span>
+                                <p className="text-[8px] text-rose-455 uppercase font-black tracking-widest leading-none mb-0.5">5th Why (Structural Underlying Cause)</p>
+                                <p className="text-xs text-amber-300 font-black tracking-wide leading-relaxed">{rec.why5 || 'Root cause identified'}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Aggregated Root Cause box */}
+                            <div className="bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl mt-3 text-xs select-text">
+                              <span className="text-[8.5px] font-black text-rose-400 uppercase tracking-widest block mb-1 font-mono">Synthesized Structural Cause</span>
+                              <p className="text-slate-200 font-medium leading-relaxed">{rec.rootCause || 'Under Investigation and assessment'}</p>
+                            </div>
+                          </div>
+
+                          {/* Remediation & Workaround Playbook */}
+                          <div className="flex-1 flex flex-col justify-between gap-4 border-t md:border-t-0 md:border-l border-slate-850 md:pl-5 pt-4 md:pt-0 text-left">
+                            <div className="space-y-4">
+                              <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none border-b border-slate-850 pb-2 flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Remediation & Fail-safe Playbooks</span>
+                              </h4>
+
+                              {/* Temporary Workaround */}
+                              <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl space-y-1">
+                                <div className="flex items-center gap-1.5 text-amber-500">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  <span className="text-[8.5px] uppercase font-black tracking-widest">Interim Restorative Workaround</span>
+                                </div>
+                                <p className="text-xs text-slate-300 font-medium leading-relaxed">{rec.interimWorkaround || 'No temporary workaround documented.'}</p>
+                              </div>
+
+                              {/* Permanent Prevention Fix */}
+                              <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-xl space-y-1">
+                                <div className="flex items-center gap-1.5 text-emerald-400">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span className="text-[8.5px] uppercase font-black tracking-widest">Permanent Structural Resolution</span>
+                                </div>
+                                <p className="text-xs text-slate-300 font-medium leading-relaxed">{rec.permanentFix || 'No permanent corrective action defined yet.'}</p>
+                              </div>
+                            </div>
+
+                            {/* Target resolution Date */}
+                            <div className="flex items-center justify-between text-[10px] bg-slate-950 p-2.5 rounded-xl border border-slate-850/80">
+                              <span className="text-slate-500 uppercase font-black text-[8px] tracking-widest flex items-center gap-1.5 font-mono">
+                                <Calendar className="w-3.5 h-3.5 text-indigo-450" />
+                                <span>Target Remediation Deadline</span>
+                              </span>
+                              <span className="font-mono text-slate-300 font-black">{rec.targetDate || 'Continuous'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {filteredProblems.length === 0 && (
+                    <div className="py-20 text-center border-2 border-dashed border-slate-800 rounded-3xl select-none">
+                      <Brain className="w-8 h-8 text-rose-500/20 mx-auto mb-3 animate-pulse" />
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">No matching problem and rca profiles recorded</p>
+                      <p className="text-[10px] text-slate-600 uppercase font-black mt-1">Try resetting your filters or register a new Problem profile</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Problem / RCA Management Registration & Editing Dialog Modal */}
+          <AnimatePresence>
+            {isProblemModalOpen && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in font-sans">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-left"
+                >
+                  <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-rose-500/10 rounded-xl text-rose-455">
+                        <Brain className="w-5 h-5 text-rose-400 animate-pulse-subtle" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {editingProblemRecord ? `Edit Root Cause Profile (${editingProblemRecord.id})` : 'Register Problem & RCA profile'}
+                        </h3>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                          ITIL problem management registry and structural fail-safe tracking
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setIsProblemModalOpen(false);
+                        resetProblemForm();
+                      }}
+                      className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveProblemRecord} className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Title */}
+                      <div className="md:col-span-2">
+                        <label className="label-sm">Descriptive Problem Title / Causal Briefing *</label>
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="e.g., Active Directory LDAP validation locks or Out-Of-Memory memory leak during load"
+                          className="input-field"
+                          value={pmFormTitle}
+                          onChange={e => setPmFormTitle(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Associated Project */}
+                      <div>
+                        <label className="label-sm">Associated Project Config *</label>
+                        <select
+                          className="input-field bg-slate-950"
+                          value={pmFormProjectId}
+                          onChange={e => setPmFormProjectId(e.target.value)}
+                          required
+                        >
+                          <option value="">Select Project...</option>
+                          {(PROJECTS_LIST.length > 0 ? PROJECTS_LIST : ['HR-Portal', 'E-Commerce', 'Internal-CRM', 'Mobile-App']).map(p => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <label className="label-sm">Investigation State *</label>
+                        <select
+                          className="input-field bg-slate-950"
+                          value={pmFormStatus}
+                          onChange={e => setPmFormStatus(e.target.value)}
+                          required
+                        >
+                          <option value="Under Investigation">Under Investigation</option>
+                          <option value="Active">Active</option>
+                          <option value="Known Error">Known Error</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Permanently Fixed">Permanently Fixed</option>
+                        </select>
+                      </div>
+
+                      {/* Impact */}
+                      <div>
+                        <label className="label-sm">Causal Impact *</label>
+                        <select
+                          className="input-field bg-slate-950"
+                          value={pmFormImpact}
+                          onChange={e => setPmFormImpact(e.target.value)}
+                          required
+                        >
+                          <option value="Critical">Critical</option>
+                          <option value="High">High</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Low">Low</option>
+                        </select>
+                      </div>
+
+                      {/* Target Date */}
+                      <div>
+                        <label className="label-sm">Target Remediation Expiry</label>
+                        <input 
+                          type="date" 
+                          className="input-field"
+                          value={pmFormTargetDate}
+                          onChange={e => setPmFormTargetDate(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Assigned Owner */}
+                      <div>
+                        <label className="label-sm">Assigned Owner Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Rajesh Kumar"
+                          className="input-field"
+                          value={pmFormAssignedTo}
+                          onChange={e => setPmFormAssignedTo(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Assigned Team */}
+                      <div>
+                        <label className="label-sm">Assigned Tech Team</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g., Search & Recs team, Ops Infrastructure"
+                          className="input-field"
+                          value={pmFormAssignedTeam}
+                          onChange={e => setPmFormAssignedTeam(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Is Known Error Checkbox */}
+                      <div className="md:col-span-2 flex items-center gap-3 bg-slate-950/40 p-3 rounded-2xl border border-slate-850">
+                        <input 
+                          type="checkbox"
+                          id="pmFormIsKnownError"
+                          className="w-4 h-4 rounded text-rose-500 bg-slate-900 border-slate-800 cursor-pointer"
+                          checked={pmFormIsKnownError}
+                          onChange={e => setPmFormIsKnownError(e.target.checked)}
+                        />
+                        <label htmlFor="pmFormIsKnownError" className="text-xs font-bold text-slate-300 cursor-pointer select-none">
+                          Register inside KEDB (Known Error Database) as a recognized system anomaly with workarounds.
+                        </label>
+                      </div>
+
+                      {/* Linked Incident checklist */}
+                      <div className="md:col-span-2">
+                        <label className="label-sm text-slate-400">Link Incident Tickets</label>
+                        <div className="max-h-36 overflow-y-auto border border-slate-800 bg-slate-950 p-3 rounded-xl space-y-1.5 text-xs text-slate-350 scrollbar-thin">
+                          {tasks.length === 0 ? (
+                            <span className="text-slate-500 italic">No incidents recorded in memory database.</span>
+                          ) : (
+                            tasks.map(t => (
+                              <label key={t.ticketId} className="flex items-center gap-2 hover:text-white cursor-pointer py-0.5 border-b border-slate-900 last:border-0 pb-1 last:pb-0">
+                                <input
+                                  type="checkbox"
+                                  className="rounded text-rose-500 focus:ring-rose-500 bg-slate-850 border-slate-750 w-3.5 h-3.5 cursor-pointer"
+                                  checked={pmFormIncidentIds.includes(t.ticketId)}
+                                  onChange={e => {
+                                    if (e.target.checked) {
+                                      setPmFormIncidentIds(prev => [...prev, t.ticketId]);
+                                    } else {
+                                      setPmFormIncidentIds(prev => prev.filter(id => id !== t.ticketId));
+                                    }
+                                  }}
+                                />
+                                <span className="font-mono text-[9px] text-indigo-400 bg-indigo-950/40 border border-indigo-900/30 px-1.5 py-0.2 rounded shrink-0">{t.ticketId}</span>
+                                <span className="truncate max-w-md">{t.assignedTo || 'Unassigned'} - {t.description}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AI GEMINI COPILOT BANNER */}
+                      <div className="md:col-span-2 bg-gradient-to-r from-rose-950/20 via-pink-950/10 to-indigo-950/30 border border-rose-500/10 p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-rose-500/10 text-rose-450 rounded-xl">
+                            <Brain className="w-5 h-5 animate-pulse" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-rose-455 uppercase tracking-wider leading-none">Gemini Root Cause Copilot</h4>
+                            <p className="text-[10px] text-slate-400 leading-normal mt-1.5">
+                              Leverages Gemini 3.5 Flash to automatically draft a detailed 5 Whys chain based on your Title and incidents!
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isPmAiDrafting}
+                          onClick={handlePmAiDraft}
+                          className="px-4 py-2 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 disabled:from-slate-800 disabled:to-slate-850 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-lg active:scale-95 cursor-pointer disabled:pointer-events-none"
+                        >
+                          {isPmAiDrafting ? (
+                            <>
+                              <svg className="animate-spin h-3.5 w-3.5 text-white shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>Drafting Playbooks...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 animate-pulse text-white" />
+                              <span>Draft 5 Whys & Plan</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* 5 Whys Forms */}
+                      <div className="md:col-span-2 border-t border-slate-850 pt-4 space-y-3 font-sans">
+                        <h4 className="text-[10.5px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Brain className="w-4 h-4 text-rose-455" />
+                          <span>5 Whys Logical Cause Sequence Inputs</span>
+                        </h4>
+
+                        <div className="space-y-2.5 text-left">
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">1st Why (Primary Failure Trigger)</span>
+                            <input 
+                              type="text" 
+                              required
+                              placeholder="e.g. Recommendations engine server container timed out during checkout"
+                              className="input-field"
+                              value={pmFormWhy1}
+                              onChange={e => setPmFormWhy1(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">2nd Why (Immediate Cause)</span>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. recommendations service memory load exceeded limit causing virtual machine slow down"
+                              className="input-field"
+                              value={pmFormWhy2}
+                              onChange={e => setPmFormWhy2(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">3rd Why (Secondary Chain)</span>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. recommendations model JVM heap utilisation rose above 95% triggers full garbage collection"
+                              className="input-field"
+                              value={pmFormWhy3}
+                              onChange={e => setPmFormWhy3(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">4th Why (Root Context / Architecture)</span>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Model loader did not implement correct lifecycle loops to deregister strong reference listeners on reloading"
+                              className="input-field"
+                              value={pmFormWhy4}
+                              onChange={e => setPmFormWhy4(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] uppercase tracking-wider font-bold text-rose-455 block mb-1">5th Why (Structural Underlying Cause)</span>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. Developer used custom cache framework using global static objects omitting any eviction/limit policies"
+                              className="input-field text-amber-300 font-bold placeholder-slate-650 focus:border-amber-400"
+                              value={pmFormWhy5}
+                              onChange={e => setPmFormWhy5(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Structural Root Cause */}
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="label-sm text-rose-400">Aggregated ITIL Structural Root Cause Statement *</label>
+                        <textarea 
+                          rows={2}
+                          required
+                          placeholder="Provide a formal root cause statement summarizing the 5 Whys findings..."
+                          className="input-field"
+                          value={pmFormRootCause}
+                          onChange={e => setPmFormRootCause(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Interim Workaround */}
+                      <div className="space-y-1">
+                        <label className="label-sm text-amber-500">Interim Restorative Workaround Plan</label>
+                        <textarea 
+                          rows={3}
+                          placeholder="Temporary relief measures to keep service running before permanent fixes..."
+                          className="input-field"
+                          value={pmFormInterimWorkaround}
+                          onChange={e => setPmFormInterimWorkaround(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Permanent Prevention Action Plan */}
+                      <div className="space-y-1">
+                        <label className="label-sm text-emerald-450">Permanent Deficit Correction / Prevention Fix</label>
+                        <textarea 
+                          rows={3}
+                          placeholder="How will this be permanently engineered out of existence..."
+                          className="input-field"
+                          value={pmFormPermanentFix}
+                          onChange={e => setPmFormPermanentFix(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bottom Modal Controller */}
+                    <div className="p-6 border-t border-slate-850 flex items-center justify-between bg-slate-900/60 mt-6 -mx-6 -mb-6 select-none font-mono">
+                      <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest leading-none">
+                        Securing Root Cause Records Registry
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setIsProblemModalOpen(false);
+                            resetProblemForm();
+                          }}
+                          className="px-6 py-2.5 bg-slate-800 hover:bg-slate-755 text-slate-400 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit" 
+                          className="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-500/25 active:scale-95 cursor-pointer"
+                        >
+                          {editingProblemRecord ? 'Update RCA Profile' : 'Save Problem Record'}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
             )}
           </AnimatePresence>
 
