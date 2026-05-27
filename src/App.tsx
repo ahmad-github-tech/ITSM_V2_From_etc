@@ -18,7 +18,7 @@ import {
   Search, Download, Trash2, LayoutDashboard, ListTodo, Filter, ChevronRight, ChevronLeft, ArrowUpDown, Settings, Save,
   Pencil, RotateCcw, AlertTriangle, Info, ShieldAlert, UserPlus, Users, Key,
   History, Eye, Scale, Terminal, Calendar, ChevronDown, FileSpreadsheet, FileText, X, Palette,
-  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail
+  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail, Laptop, Server
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { format, subDays, differenceInMinutes, parseISO as dateFnsParseISO, startOfDay, endOfDay, addDays, subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
@@ -490,7 +490,7 @@ Signatures Registered:
     };
   };
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'workbook' | 'settings' | 'mapping-details' | 'user-onboard' | 'knowledge-base' | 'change-release' | 'problem-management'>('workbook');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'workbook' | 'settings' | 'mapping-details' | 'user-onboard' | 'knowledge-base' | 'change-release' | 'problem-management' | 'asset-management'>('workbook');
   const [trendPeriod, setTrendPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'custom'>('daily');
   const [customStartDate, setCustomStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -1501,6 +1501,282 @@ Signatures Registered:
   });
 
   const [isColumnsPanelOpen, setIsColumnsPanelOpen] = useState<boolean>(false);
+
+  // --- CONFIGURED IT ASSET MANAGEMENT (ITAM) DATABASE ---
+  const [assetCategories, setAssetCategories] = useState<any[]>(() => {
+    const saved = localStorage.getItem('sflow_asset_categories');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'laptop',
+        name: 'Laptops & Devices',
+        iconName: 'Laptop',
+        attributes: [
+          { id: 'processor', name: 'Processor CPU', type: 'text', required: true },
+          { id: 'ram', name: 'RAM Size', type: 'text', required: true },
+          { id: 'storage', name: 'SSD Storage', type: 'text', required: true },
+          { id: 'os', name: 'OS Platform', type: 'text', required: false }
+        ]
+      },
+      {
+        id: 'license',
+        name: 'Software Licenses',
+        iconName: 'Key',
+        attributes: [
+          { id: 'license_key', name: 'Activation License Key', type: 'text', required: true },
+          { id: 'expiry_date', name: 'Expiration Date', type: 'date', required: false },
+          { id: 'seats', name: 'License Seats Allowed', type: 'number', required: false }
+        ]
+      },
+      {
+        id: 'server',
+        name: 'Staging & Prod Servers',
+        iconName: 'Server',
+        attributes: [
+          { id: 'ip_address', name: 'IP / Domain Address', type: 'text', required: true },
+          { id: 'vcpu_count', name: 'vCPU Cores', type: 'number', required: true },
+          { id: 'memory_gb', name: 'System Memory GB', type: 'number', required: true },
+          { id: 'cloud_provider', name: 'Cloud Provider Host', type: 'text', required: false }
+        ]
+      }
+    ];
+  });
+
+  const [assets, setAssets] = useState<any[]>(() => {
+    const saved = localStorage.getItem('sflow_assets');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: 'AST-2910',
+        category: 'laptop',
+        name: 'Dell Latitude 7440',
+        serialNumber: 'DELL-99A82B1',
+        projectId: 'HR-Portal',
+        owner: 'DGSL',
+        holderName: 'Omar Al-Ghamdi',
+        holderId: 'EMP-392',
+        wfhLocation: 'Riyadh, Saudi Arabia',
+        baseLocation: 'KAUST HQ Staging',
+        dateAssigned: '2026-01-10',
+        customSpecs: { processor: 'Intel Core i7-1370P', ram: '32 GB DDR5', storage: '1 TB Gen4 NVMe', os: 'Windows 11 Pro' },
+        status: 'Deployed'
+      },
+      {
+        id: 'AST-3902',
+        category: 'laptop',
+        name: 'MacBook Pro 16" M3 Max',
+        serialNumber: 'APL-M3MX77B2',
+        projectId: 'E-Commerce',
+        owner: 'Client',
+        holderName: 'Sarah Jenkins',
+        holderId: 'EMP-114',
+        wfhLocation: 'Remote (Home Office)',
+        baseLocation: 'Client Onsite Off',
+        dateAssigned: '2026-03-15',
+        customSpecs: { processor: 'Apple M3 Max (16-Core)', ram: '48 GB Unified', storage: '2 TB SSD', os: 'macOS Sonoma' },
+        status: 'Deployed'
+      },
+      {
+        id: 'AST-8812',
+        category: 'license',
+        name: 'IntelliJ IDEA Ultimate',
+        serialNumber: 'JB-INT-09281',
+        projectId: 'Internal-CRM',
+        owner: 'DGSL',
+        holderName: 'Rajesh Kumar',
+        holderId: 'EMP-401',
+        wfhLocation: 'Dammam, Eastern Prov',
+        baseLocation: 'KAUST HQ Staging',
+        dateAssigned: '2025-11-20',
+        customSpecs: { license_key: 'JB-IDEA-8891-2291A-XYZ', expiry_date: '2026-11-20', seats: 1 },
+        status: 'Deployed'
+      },
+      {
+        id: 'AST-4410',
+        category: 'server',
+        name: 'Azure Database Primary Replica',
+        serialNumber: 'AZ-VM-DB-001a',
+        projectId: 'Mobile-App',
+        owner: 'Client',
+        holderName: 'Systems Admins (STG)',
+        holderId: 'SYS-OPS',
+        wfhLocation: 'Staging VPC East',
+        baseLocation: 'Riyadh Datacenter',
+        dateAssigned: '2026-04-01',
+        customSpecs: { ip_address: '10.230.12.98', vcpu_count: 8, memory_gb: 32, cloud_provider: 'Microsoft Azure' },
+        status: 'Deployed'
+      },
+      {
+        id: 'AST-1102',
+        category: 'laptop',
+        name: 'Lenovo ThinkPad P1 Gen 6',
+        serialNumber: 'LNV-88219A9',
+        projectId: 'HR-Portal',
+        owner: 'DGSL',
+        holderName: 'Michael Chang',
+        holderId: 'EMP-304',
+        wfhLocation: 'Jeddah Office',
+        baseLocation: 'Jeddah Regional Office',
+        dateAssigned: '2026-02-05',
+        customSpecs: { processor: 'Intel Core i9-13900H', ram: '64 GB', storage: '2 TB SSD', os: 'Ubuntu 24.04 LTS' },
+        status: 'Under Maintenance'
+      },
+      {
+        id: 'AST-7761',
+        category: 'license',
+        name: 'Adobe Creative Cloud Team Seat',
+        serialNumber: 'AD-CC-736291',
+        projectId: 'Mobile-App',
+        owner: 'Client',
+        holderName: 'Aisha Al-Harbi',
+        holderId: 'EMP-902',
+        wfhLocation: 'Hybrid Riyadh Office',
+        baseLocation: 'KAUST HQ Staging',
+        dateAssigned: '2026-05-01',
+        customSpecs: { license_key: 'ADOBE-CC-KEY-VALUE-STG', expiry_date: '2027-05-01', seats: 5 },
+        status: 'Deployed'
+      }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sflow_asset_categories', JSON.stringify(assetCategories));
+  }, [assetCategories]);
+
+  useEffect(() => {
+    localStorage.setItem('sflow_assets', JSON.stringify(assets));
+  }, [assets]);
+
+  // Asset Filter & Sorting & Form management states
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
+  const [assetFilterCategory, setAssetFilterCategory] = useState('All');
+  const [assetFilterOwner, setAssetFilterOwner] = useState('All');
+  const [assetFilterProject, setAssetFilterProject] = useState('All');
+  const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<any | null>(null);
+  const [isCategoryConfigModalOpen, setIsCategoryConfigModalOpen] = useState(false);
+  const [activeConfigCatId, setActiveConfigCatId] = useState<string>('laptop');
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIconName, setNewCatIconName] = useState('Laptop');
+  const [newAttrName, setNewAttrName] = useState('');
+  const [newAttrType, setNewAttrType] = useState<'text' | 'number' | 'date'>('text');
+  const [newAttrRequired, setNewAttrRequired] = useState(false);
+
+  // Form Field States
+  const [assetFormCategory, setAssetFormCategory] = useState('laptop');
+  const [assetFormName, setAssetFormName] = useState('');
+  const [assetFormSerial, setAssetFormSerial] = useState('');
+  const [assetFormProject, setAssetFormProject] = useState('');
+  const [assetFormOwner, setAssetFormOwner] = useState<'Client' | 'DGSL'>('DGSL');
+  const [assetFormHolderName, setAssetFormHolderName] = useState('');
+  const [assetFormHolderId, setAssetFormHolderId] = useState('');
+  const [assetFormWfhLocation, setAssetFormWfhLocation] = useState('');
+  const [assetFormBaseLocation, setAssetFormBaseLocation] = useState('');
+  const [assetFormStatus, setAssetFormStatus] = useState('Deployed');
+  const [assetFormCustomSpecs, setAssetFormCustomSpecs] = useState<{[key: string]: any}>({});
+  
+  // Custom specs helper when opening modal
+  const handleOpenAddAsset = () => {
+    setEditingAsset(null);
+    setAssetFormCategory(assetCategories[0]?.id || 'laptop');
+    setAssetFormName('');
+    setAssetFormSerial('');
+    setAssetFormProject(projectsDB[0]?.name || 'HR-Portal');
+    setAssetFormOwner('DGSL');
+    setAssetFormHolderName('');
+    setAssetFormHolderId('');
+    setAssetFormWfhLocation('');
+    setAssetFormBaseLocation('');
+    setAssetFormStatus('Deployed');
+    setAssetFormCustomSpecs({});
+    setIsAssetModalOpen(true);
+  };
+
+  const handleOpenEditAsset = (asset: any) => {
+    setEditingAsset(asset);
+    setAssetFormCategory(asset.category);
+    setAssetFormName(asset.name);
+    setAssetFormSerial(asset.serialNumber);
+    setAssetFormProject(asset.projectId);
+    setAssetFormOwner(asset.owner);
+    setAssetFormHolderName(asset.holderName);
+    setAssetFormHolderId(asset.holderId);
+    setAssetFormWfhLocation(asset.wfhLocation);
+    setAssetFormBaseLocation(asset.baseLocation);
+    setAssetFormStatus(asset.status);
+    setAssetFormCustomSpecs(asset.customSpecs || {});
+    setIsAssetModalOpen(true);
+  };
+
+  const handleSaveAsset = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assetFormName || !assetFormSerial) return;
+    
+    const assetData = {
+      id: editingAsset ? editingAsset.id : `AST-${Math.floor(1000 + Math.random() * 9000)}`,
+      category: assetFormCategory,
+      name: assetFormName,
+      serialNumber: assetFormSerial,
+      projectId: assetFormProject,
+      owner: assetFormOwner,
+      holderName: assetFormHolderName || 'Unassigned / Available',
+      holderId: assetFormHolderId || 'N/A',
+      wfhLocation: assetFormWfhLocation || 'Unavailable',
+      baseLocation: assetFormBaseLocation || 'Warehouse-Staging',
+      dateAssigned: editingAsset ? editingAsset.dateAssigned : new Date().toISOString().split('T')[0],
+      status: assetFormStatus,
+      customSpecs: assetFormCustomSpecs
+    };
+
+    if (editingAsset) {
+      setAssets(assets.map(a => a.id === editingAsset.id ? assetData : a));
+    } else {
+      setAssets([assetData, ...assets]);
+    }
+    setIsAssetModalOpen(false);
+  };
+
+  const handleDeleteAsset = (id: string) => {
+    if (confirm("Are you sure you want to permanently decommission this asset?")) {
+      setAssets(assets.filter(a => a.id !== id));
+    }
+  };
+
+  const handleAddCategory = (name: string, iconName: string = 'Laptop') => {
+    const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    if (assetCategories.some(c => c.id === id)) {
+      alert("A category with this name already exists.");
+      return;
+    }
+    const newCat = {
+      id,
+      name,
+      iconName,
+      attributes: []
+    };
+    setAssetCategories([...assetCategories, newCat]);
+  };
+
+  const handleAddCategoryAttribute = (catId: string, attrName: string, attrType: 'text' | 'number' | 'date', required: boolean = false) => {
+    const attrId = attrName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    setAssetCategories(assetCategories.map(c => {
+      if (c.id === catId) {
+        if (c.attributes.some((a: any) => a.id === attrId)) {
+          alert("An attribute with this key already exists on this category.");
+          return c;
+        }
+        return {
+          ...c,
+          attributes: [...c.attributes, { id: attrId, name: attrName, type: attrType, required }]
+        };
+      }
+      return c;
+    }));
+  };
 
   const saveColumns = (newCols: WorkbookColumn[]) => {
     setWorkbookColumns(newCols);
@@ -5058,7 +5334,7 @@ Guidelines:
                 onClick={() => setIsUtilityDropdownOpen(!isUtilityDropdownOpen)}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800/80 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-inner",
-                  ['workbook', 'knowledge-base', 'change-release', 'problem-management'].includes(activeTab as string) ? "border-slate-700/80 text-white" : "text-slate-400 hover:text-slate-200"
+                  ['workbook', 'knowledge-base', 'change-release', 'problem-management', 'asset-management'].includes(activeTab as string) ? "border-slate-700/80 text-white" : "text-slate-400 hover:text-slate-200"
                 )}
                 title="Switch active operational workspace"
               >
@@ -5081,6 +5357,11 @@ Guidelines:
                   <>
                     <Brain className="w-4 h-4 text-rose-400 shrink-0" />
                     <span className="text-rose-455">RCA & Problems</span>
+                  </>
+                ) : activeTab === 'asset-management' ? (
+                  <>
+                    <Laptop className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">IT Asset Registry</span>
                   </>
                 ) : (
                   <>
@@ -5177,11 +5458,30 @@ Guidelines:
                           )}
                         >
                           <div className="flex items-center gap-2">
-                            <Brain className="w-3.5 h-3.5 text-rose-450 shrink-0" />
+                            <Brain className="w-3.5 h-3.5 text-rose-455 shrink-0" />
                             <span>RCA & Problems</span>
                           </div>
                           {(activeTab as string) === 'problem-management' && (
                             <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setActiveTab('asset-management' as any);
+                            setIsUtilityDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800 rounded-md text-slate-300 hover:text-white transition-colors text-xs font-bold text-left cursor-pointer",
+                            (activeTab as string) === 'asset-management' && "bg-slate-900 text-white shadow-md border border-slate-800"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Laptop className="w-3.5 h-3.5 text-emerald-455 shrink-0" />
+                            <span>IT Asset Registry</span>
+                          </div>
+                          {(activeTab as string) === 'asset-management' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                           )}
                         </button>
                       </div>
@@ -9717,6 +10017,793 @@ Guidelines:
                   )}
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Configurable Asset Management (ITAM) Tab Section */}
+          <AnimatePresence mode="wait">
+            {(activeTab as string) === 'asset-management' && (
+              <motion.div
+                key="asset-management"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -25 }}
+                className="space-y-6 text-left font-sans"
+              >
+                {/* Header Title Section */}
+                <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
+                      <Laptop className="w-6 h-6 text-emerald-400 shrink-0" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-sans font-black text-white uppercase tracking-tight">IT Asset & Configuration Management (ITAM)</h2>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">
+                        Config-driven asset taxonomy. Track user assignments, locations, ownership, and dynamic category parameters.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => setIsCategoryConfigModalOpen(true)}
+                      className="btn-secondary flex items-center gap-2 text-xs font-bold font-mono py-1.5 cursor-pointer bg-slate-800 hover:bg-slate-750 border border-slate-700/60"
+                      title="Manage configurable asset types and attributes schema"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span>Configure Schemas</span>
+                    </button>
+                    <button
+                      onClick={handleOpenAddAsset}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg hover:shadow-emerald-500/10 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Register Asset</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Analytical KPI Widget Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Registry Size</span>
+                    <p className="text-xl font-sans font-black text-indigo-400 mt-1">{assets.length}</p>
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5">Configured Profiles</p>
+                  </div>
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">DGSL-Owned</span>
+                    <p className="text-xl font-sans font-black text-blue-400 mt-1">
+                      {assets.filter(a => a.owner === 'DGSL').length}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5">Internal Inventory</p>
+                  </div>
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Client-Owned</span>
+                    <p className="text-xl font-sans font-black text-amber-500 mt-1">
+                      {assets.filter(a => a.owner === 'Client').length}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5">External/Mapped Assets</p>
+                  </div>
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
+                    <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Active Deployed</span>
+                    <p className="text-xl font-sans font-black text-emerald-400 mt-1">
+                      {assets.filter(a => a.status === 'Deployed').length}
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5">Assigned to Personnel</p>
+                  </div>
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl col-span-2 lg:col-span-1">
+                    <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Taxonomy Classes</span>
+                    <p className="text-xl font-sans font-black text-sky-400 mt-1">{assetCategories.length}</p>
+                    <p className="text-[9px] text-slate-400 font-mono mt-0.5">Active Categorizations</p>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar Section */}
+                <div className="bg-slate-900/30 p-4 rounded-2xl border border-slate-850/60 flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="relative w-full md:w-80">
+                    <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-slate-500 font-bold" />
+                    <input
+                      type="text"
+                      placeholder="Search assets, Serial#, holder, locations..."
+                      className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-850 focus:border-slate-700/80 rounded-xl text-xs font-medium text-slate-200 placeholder-slate-600 outline-none transition-all font-sans"
+                      value={assetSearchQuery}
+                      onChange={e => setAssetSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    {/* Category Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Category:</span>
+                      <select
+                        className="bg-slate-950 border border-slate-850 rounded-lg text-xs font-bold text-slate-300 py-1 px-2.5 outline-none hover:bg-slate-900 cursor-pointer h-8"
+                        value={assetFilterCategory}
+                        onChange={e => setAssetFilterCategory(e.target.value)}
+                      >
+                        <option value="All">All Categories</option>
+                        {assetCategories.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Ownership Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Owner:</span>
+                      <select
+                        className="bg-slate-950 border border-slate-850 rounded-lg text-xs font-bold text-slate-300 py-1 px-2.5 outline-none hover:bg-slate-900 cursor-pointer h-8"
+                        value={assetFilterOwner}
+                        onChange={e => setAssetFilterOwner(e.target.value)}
+                      >
+                        <option value="All">All Owners</option>
+                        <option value="DGSL">DGSL Internal</option>
+                        <option value="Client">Client</option>
+                      </select>
+                    </div>
+
+                    {/* Project Filter */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Project:</span>
+                      <select
+                        className="bg-slate-950 border border-slate-850 rounded-lg text-xs font-bold text-slate-300 py-1 px-2.5 outline-none hover:bg-slate-900 cursor-pointer h-8"
+                        value={assetFilterProject}
+                        onChange={e => setAssetFilterProject(e.target.value)}
+                      >
+                        <option value="All">All Projects</option>
+                        {projectsDB.map(p => (
+                          <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Data Table */}
+                <div className="bg-slate-900/20 border border-slate-800/80 rounded-3xl overflow-hidden shadow-xl">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse select-text">
+                      <thead>
+                        <tr className="border-b border-slate-800/80 bg-slate-900/60 uppercase font-mono text-[10px] font-black text-slate-500 tracking-wider">
+                          <th className="px-6 py-4">Asset ID / Name</th>
+                          <th className="px-6 py-4">Classification</th>
+                          <th className="px-6 py-4">Ownership & Project</th>
+                          <th className="px-6 py-4">Assigned Holding Recipient</th>
+                          <th className="px-6 py-4">Locations Context</th>
+                          <th className="px-6 py-4 text-center">Status</th>
+                          <th className="px-6 py-4 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-900/40">
+                        {(() => {
+                          const queryLower = assetSearchQuery.toLowerCase().trim();
+                          const filtered = assets.filter(asset => {
+                            const matchQuery = !queryLower || 
+                              asset.id.toLowerCase().includes(queryLower) ||
+                              asset.name.toLowerCase().includes(queryLower) ||
+                              asset.serialNumber.toLowerCase().includes(queryLower) ||
+                              (asset.holderName && asset.holderName.toLowerCase().includes(queryLower)) ||
+                              (asset.holderId && asset.holderId.toLowerCase().includes(queryLower)) ||
+                              (asset.wfhLocation && asset.wfhLocation.toLowerCase().includes(queryLower)) ||
+                              (asset.baseLocation && asset.baseLocation.toLowerCase().includes(queryLower)) ||
+                              (asset.customSpecs && Object.values(asset.customSpecs).some((v: any) => String(v).toLowerCase().includes(queryLower)));
+                            
+                            const matchCategory = assetFilterCategory === 'All' || asset.category === assetFilterCategory;
+                            const matchOwner = assetFilterOwner === 'All' || asset.owner === assetFilterOwner;
+                            const matchProject = assetFilterProject === 'All' || asset.projectId === assetFilterProject;
+
+                            return matchQuery && matchCategory && matchOwner && matchProject;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="py-20 text-center text-slate-500 select-none">
+                                  <Laptop className="w-8 h-8 text-slate-700/60 mx-auto mb-3 animate-pulse" />
+                                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">No assets match your active filters</p>
+                                  <p className="text-[9px] text-slate-650 uppercase font-black mt-1">Refine your search parameters or register a new asset profile</p>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((asset) => {
+                            const catObj = assetCategories.find(c => c.id === asset.category) || { name: asset.category, iconName: 'Laptop' };
+                            const IconComponent = catObj.iconName === 'Key' ? Key : catObj.iconName === 'Server' ? Server : Laptop;
+                            
+                            return (
+                              <tr key={asset.id} className="hover:bg-slate-900/20 transition-all group font-sans border-b border-slate-900/20">
+                                <td className="px-6 py-4 max-w-[240px]">
+                                  <div className="flex items-start gap-3">
+                                    <div className={`p-2 rounded-xl mt-0.5 ${
+                                      asset.category === 'laptop' ? 'bg-blue-500/10 text-blue-400' :
+                                      asset.category === 'license' ? 'bg-indigo-500/10 text-indigo-400' :
+                                      'bg-emerald-500/10 text-emerald-400'
+                                    }`}>
+                                      <IconComponent className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-mono text-[10px] font-black text-slate-400 uppercase">{asset.id}</span>
+                                        <span className="text-[8px] font-mono text-slate-500 tracking-wider truncate" title={`Serial: ${asset.serialNumber}`}>
+                                          (S/N: {asset.serialNumber})
+                                        </span>
+                                      </div>
+                                      <p className="text-xs font-bold text-white mt-0.5 truncate">{asset.name}</p>
+                                      
+                                      {/* Specs underneath */}
+                                      {asset.customSpecs && Object.keys(asset.customSpecs).length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                          {Object.entries(asset.customSpecs).map(([key, value]) => {
+                                            const attrSchema = catObj.attributes?.find((a: any) => a.id === key) || { name: key };
+                                            return value ? (
+                                              <span key={key} className="text-[8px] font-bold font-mono bg-slate-950 text-slate-400 px-1.5 py-0.5 rounded border border-slate-850/60" title={attrSchema.name}>
+                                                {attrSchema.name}: <strong className="text-slate-300 font-black">{String(value)}</strong>
+                                              </span>
+                                            ) : null;
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-[10px] font-extrabold uppercase bg-slate-950 text-slate-400 px-2 py-1 rounded-lg border border-slate-850 font-mono">
+                                    {catObj.name}
+                                  </span>
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="space-y-1">
+                                    <span className={`text-[9px] font-black uppercase text-[10px] tracking-wide px-1.5 py-0.5 rounded-md ${
+                                      asset.owner === 'DGSL' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-500'
+                                    }`}>
+                                      {asset.owner} Owned
+                                    </span>
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-wider font-mono select-all mt-0.5">
+                                      {asset.projectId || 'N/A'}
+                                    </p>
+                                  </div>
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      <p className="text-xs font-bold text-slate-200">{asset.holderName}</p>
+                                    </div>
+                                    <p className="text-[9.5px] font-semibold text-slate-500 font-mono block pl-3 select-all">
+                                      ID: {asset.holderId}
+                                    </p>
+                                  </div>
+                                </td>
+
+                                <td className="px-6 py-4 whitespace-nowrap text-xs">
+                                  <div className="text-slate-300 select-all space-y-0.5">
+                                    <p className="font-semibold" title="Work From Home Location">
+                                      <span className="text-slate-550 text-[8.5px] font-black font-mono">WFH:</span> {asset.wfhLocation}
+                                    </p>
+                                    <p className="text-slate-400" title="Assigned Base Office Location">
+                                      <span className="text-slate-550 text-[8.5px] font-black font-mono">BASE:</span> {asset.baseLocation}
+                                    </p>
+                                  </div>
+                                </td>
+
+                                <td className="px-6 py-4 text-center whitespace-nowrap">
+                                  <span className={`inline-block px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider font-mono ${
+                                    asset.status === 'Deployed' ? 'bg-emerald-500/10 text-emerald-400' :
+                                    asset.status === 'In Stock' ? 'bg-blue-500/10 text-blue-400' :
+                                    asset.status === 'Under Maintenance' ? 'bg-amber-500/10 text-amber-500' :
+                                    'bg-slate-800 text-slate-500'
+                                  }`}>
+                                    {asset.status}
+                                  </span>
+                                </td>
+
+                                <td className="px-6 py-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() => handleOpenEditAsset(asset)}
+                                      className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                                      title="Edit Asset Configuration"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAsset(asset.id)}
+                                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                                      title="Decommission Asset"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* ITAM Asset Registration & Editing Dialog Modal */}
+          <AnimatePresence>
+            {isAssetModalOpen && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in font-sans">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-left"
+                >
+                  <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400">
+                        <Laptop className="w-5 h-5 text-emerald-400 shrink-0" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {editingAsset ? `Edit Asset Profile (${editingAsset.id})` : 'Register IT Asset Profile'}
+                        </h3>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                          Configure standard attributes, holding assignee, and location tags
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsAssetModalOpen(false)}
+                      className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSaveAsset} className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Category Selection */}
+                      <div>
+                        <label className="label-sm text-slate-400">Asset Category / Classification *</label>
+                        <select
+                          className="input-field bg-slate-950 text-slate-100 font-bold text-xs cursor-pointer h-10"
+                          value={assetFormCategory}
+                          onChange={e => {
+                            setAssetFormCategory(e.target.value);
+                            setAssetFormCustomSpecs({});
+                          }}
+                          disabled={!!editingAsset}
+                        >
+                          {assetCategories.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Display name */}
+                      <div>
+                        <label className="label-sm text-slate-400">Model Name / Description *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Lenovo Thinkpad L14, MS Office 365 Pro Seat"
+                          className="input-field cursor-text text-slate-100 placeholder-slate-600 bg-slate-950/45 border-slate-800"
+                          value={assetFormName}
+                          onChange={e => setAssetFormName(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Serial Number / Asset Code */}
+                      <div>
+                        <label className="label-sm text-slate-400">Barcode / S/N / Activation Code *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. S/N Number, License String, Reference Key"
+                          className="input-field text-xs text-amber-200 font-mono bg-slate-955 border-slate-800"
+                          value={assetFormSerial}
+                          onChange={e => setAssetFormSerial(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Mapped Project */}
+                      <div>
+                        <label className="label-sm text-slate-400">Belongs to Project *</label>
+                        <select
+                          className="input-field bg-slate-950 text-slate-100 font-bold text-xs cursor-pointer h-10"
+                          value={assetFormProject}
+                          onChange={e => setAssetFormProject(e.target.value)}
+                          required
+                        >
+                          {projectsDB.map(p => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Owner */}
+                      <div>
+                        <label className="label-sm text-slate-400">Asset Ownership *</label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAssetFormOwner('DGSL')}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              assetFormOwner === 'DGSL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-950 text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            DGSL Owned
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAssetFormOwner('Client')}
+                            className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              assetFormOwner === 'Client' ? 'bg-amber-600 text-white shadow-lg' : 'bg-slate-950 text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            Client Owned
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Asset Status */}
+                      <div>
+                        <label className="label-sm text-slate-400">Current Lifecycle Status *</label>
+                        <select
+                          className="input-field bg-slate-950 text-slate-100 font-bold text-xs cursor-pointer h-10"
+                          value={assetFormStatus}
+                          onChange={e => setAssetFormStatus(e.target.value)}
+                        >
+                          <option value="Deployed">Deployed / In Use</option>
+                          <option value="In Stock">In Stock / Available</option>
+                          <option value="Under Maintenance">Under Maintenance / Repairs</option>
+                          <option value="Retired">Retired / Decommissioned</option>
+                        </select>
+                      </div>
+
+                      {/* Holder User Info */}
+                      <div className="md:col-span-2 border-t border-slate-800/60 pt-4 space-y-3">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          Custodian / Holder Assignment details
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="label-sm text-slate-400">Holding Employee Name</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Sarah Jenkins"
+                              className="input-field"
+                              value={assetFormHolderName}
+                              onChange={e => setAssetFormHolderName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="label-sm text-slate-400">Holding Employee/User ID</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. EMP-114"
+                              className="input-field text-xs font-mono text-slate-100"
+                              value={assetFormHolderId}
+                              onChange={e => setAssetFormHolderId(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="label-sm text-slate-400">WFH Physical Location Context</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Remote (Home Office, Riyadh)"
+                              className="input-field"
+                              value={assetFormWfhLocation}
+                              onChange={e => setAssetFormWfhLocation(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="label-sm text-slate-400">Assigned Base / Staging Location</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. KAUST HQ Warehouse"
+                              className="input-field"
+                              value={assetFormBaseLocation}
+                              onChange={e => setAssetFormBaseLocation(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Dynamic Specs Fields! */}
+                      {(() => {
+                        const selectedCat = assetCategories.find(c => c.id === assetFormCategory);
+                        if (!selectedCat || !selectedCat.attributes || selectedCat.attributes.length === 0) return null;
+                        return (
+                          <div className="md:col-span-2 border-t border-slate-800/80 pt-4 space-y-3">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                              Dynamic Taxonomy Attributes ({selectedCat.name})
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {selectedCat.attributes.map((attr: any) => (
+                                <div key={attr.id}>
+                                  <label className="label-sm text-slate-400">
+                                    {attr.name} {attr.required ? '*' : ''}
+                                  </label>
+                                  <input
+                                    type={attr.type}
+                                    required={attr.required}
+                                    className="input-field text-xs text-slate-100"
+                                    placeholder={`Enter ${attr.name.toLowerCase()} value...`}
+                                    value={assetFormCustomSpecs[attr.id] || ''}
+                                    onChange={e => setAssetFormCustomSpecs({
+                                      ...assetFormCustomSpecs,
+                                      [attr.id]: e.target.value
+                                    })}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Footer buttons */}
+                    <div className="p-6 border-t border-slate-850 flex justify-end gap-3 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsAssetModalOpen(false)}
+                        className="btn-secondary py-2 cursor-pointer font-bold text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold font-sans text-xs text-white uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+                      >
+                        {editingAsset ? 'Save Updates' : 'Add Asset to Registry'}
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Configurable Taxonomies & Schema Manager Dialogue Modal */}
+          <AnimatePresence>
+            {isCategoryConfigModalOpen && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in font-sans">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-left"
+                >
+                  <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 font-bold">
+                        <Settings className="w-5 h-5 text-indigo-455 shrink-0" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          Taxonomy Specification Class Configurator
+                        </h3>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                          Declare dynamic asset categories and register key specifications parameter schemas in real-time
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsCategoryConfigModalOpen(false)}
+                      className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-12">
+                    {/* Left Panel: Available taxonomies */}
+                    <div className="md:col-span-5 border-r border-slate-850 flex flex-col overflow-y-auto p-5 space-y-4">
+                      <div>
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800/80 pb-1">
+                          Asset Category Classes
+                        </h4>
+                        <div className="space-y-1.5">
+                          {assetCategories.map(c => {
+                            const IconComponent = c.iconName === 'Key' ? Key : c.iconName === 'Server' ? Server : Laptop;
+                            return (
+                              <button
+                                key={c.id}
+                                onClick={() => setActiveConfigCatId(c.id)}
+                                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-xs font-bold text-left cursor-pointer ${
+                                  activeConfigCatId === c.id ? 'bg-indigo-600/10 border border-indigo-500/30 text-white font-extrabold' : 'bg-slate-950/60 border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <IconComponent className="w-4 h-4 shrink-0" />
+                                  <span>{c.name}</span>
+                                </div>
+                                <span className="text-[9px] uppercase font-bold font-mono text-slate-550 px-1.5 py-0.5 bg-slate-900 rounded">
+                                  {c.attributes?.length || 0} specs
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Form: Add New Class */}
+                      <div className="border-t border-slate-800/80 pt-4 space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-850/40">
+                        <h4 className="text-[10px] font-black text-indigo-450 uppercase tracking-widest">
+                          Add Custom Asset Category
+                        </h4>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Category Label</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Mobile Tablet, Office Desk"
+                            className="input-field text-xs text-slate-100 placeholder-slate-650"
+                            value={newCatName}
+                            onChange={e => setNewCatName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Visual Icon Representation</label>
+                          <select
+                            className="input-field text-xs bg-slate-955 h-9 font-bold text-slate-300"
+                            value={newCatIconName}
+                            onChange={e => setNewCatIconName(e.target.value)}
+                          >
+                            <option value="Laptop">Laptop / Hardware device</option>
+                            <option value="Key">License Key / Access Token</option>
+                            <option value="Server">Server VM / Cloud node</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newCatName.trim()) return;
+                            handleAddCategory(newCatName.trim(), newCatIconName);
+                            setNewCatName('');
+                          }}
+                          className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-white text-[10px] font-black uppercase tracking-wider rounded-lg border border-slate-705/80 cursor-pointer"
+                        >
+                          Register Taxonomy Class
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Panel: Spec Attribute Config */}
+                    <div className="md:col-span-7 flex flex-col overflow-y-auto p-5 space-y-5">
+                      {(() => {
+                        const targetCat = assetCategories.find(c => c.id === activeConfigCatId);
+                        if (!targetCat) {
+                          return (
+                            <div className="py-20 text-center text-slate-500 font-mono text-[10px] uppercase font-black">
+                              Select a category on the left to configure attributes
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            <div>
+                              <h4 className="text-xs font-black text-white uppercase tracking-tight flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                                <span>Attribute Specs Schema:</span>
+                                <span className="text-indigo-400 font-bold bg-indigo-500/10 px-2 py-0.5 rounded text-[10px] font-mono">{targetCat.name}</span>
+                              </h4>
+
+                              <div className="mt-4 space-y-2 select-text">
+                                {(!targetCat.attributes || targetCat.attributes.length === 0) ? (
+                                  <p className="text-[10px] font-black text-slate-500 uppercase py-4">No custom specifications attributes configured yet.</p>
+                                ) : (
+                                  targetCat.attributes.map((attr: any) => (
+                                    <div key={attr.id} className="flex items-center justify-between p-2.5 bg-slate-950/60 border border-slate-850/80 rounded-xl">
+                                      <div>
+                                        <p className="text-xs font-bold text-slate-100">{attr.name}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <span className="text-[8px] font-black px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono uppercase text-slate-400">
+                                            Type: {attr.type}
+                                          </span>
+                                          {attr.required && (
+                                            <span className="text-[8px] font-black px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-455 rounded font-mono uppercase">
+                                              Mandatory
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          setAssetCategories(assetCategories.map(c => {
+                                            if (c.id === targetCat.id) {
+                                              return {
+                                                ...c,
+                                                attributes: c.attributes.filter((a: any) => a.id !== attr.id)
+                                              };
+                                            }
+                                            return c;
+                                          }));
+                                        }}
+                                        className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-850 transition-colors cursor-pointer"
+                                        title="Remove attribute parameter"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Attrib Addition Form */}
+                            <div className="border-t border-slate-800/80 pt-4 space-y-3 bg-slate-950/25 p-4 rounded-xl border border-slate-850/50">
+                              <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                                Inject Attribute Parameter
+                              </h4>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Attribute Name</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Memory RAM Size, SSD GB"
+                                    className="input-field text-xs text-slate-100 placeholder-slate-650 bg-slate-950"
+                                    value={newAttrName}
+                                    onChange={e => setNewAttrName(e.target.value)}
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Data Input Type</label>
+                                  <select
+                                    className="input-field text-xs bg-slate-955 h-9 font-bold text-slate-300"
+                                    value={newAttrType}
+                                    onChange={e => setNewAttrType(e.target.value as any)}
+                                  >
+                                    <option value="text">Alphanumeric String Text</option>
+                                    <option value="number">Numeric / Seats Index</option>
+                                    <option value="date font-mono">Calendar Expiry Date</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="checkbox"
+                                  id="newAttrRequired"
+                                  className="w-3.5 h-3.5 rounded text-indigo-500 bg-slate-950 border-slate-800 cursor-pointer"
+                                  checked={newAttrRequired}
+                                  onChange={e => setNewAttrRequired(e.target.checked)}
+                                />
+                                <label htmlFor="newAttrRequired" className="text-[10px] font-black text-slate-400 uppercase tracking-wide cursor-pointer select-none">
+                                  Mark as a Required / Mandatory parameter
+                                </label>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!newAttrName.trim()) return;
+                                  handleAddCategoryAttribute(targetCat.id, newAttrName.trim(), newAttrType, newAttrRequired);
+                                  setNewAttrName('');
+                                  setNewAttrRequired(false);
+                                }}
+                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer"
+                              >
+                                Inject Specification Parameter
+                              </button>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Config footer */}
+                  <div className="p-6 border-t border-slate-850 flex justify-end">
+                    <button
+                      onClick={() => setIsCategoryConfigModalOpen(false)}
+                      className="px-5 py-2 bg-slate-800 hover:bg-slate-750 text-white font-bold font-sans text-xs uppercase tracking-wider rounded-xl transition-all border border-slate-750/80 cursor-pointer"
+                    >
+                      Done Configuring Schemas
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
             )}
           </AnimatePresence>
 
