@@ -990,7 +990,7 @@ Signatures Registered:
     return [];
   });
   
-  const [emailConfigs, setEmailConfigs] = useState<{[key: string]: { recipients: string; subject: string; body: string; }}> (() => {
+  const [emailConfigs, setEmailConfigs] = useState<{[key: string]: { recipients: string; subject: string; body: string; reportFields?: string[]; }}> (() => {
     const saved = localStorage.getItem('sflow_email_configs');
     if (saved) {
       try {
@@ -5703,19 +5703,35 @@ Guidelines:
               </AnimatePresence>
             </div>
 
-            {/* Terminal/Breakpoint Toggle custom button positioned perfectly after Export Report Section */}
+            {/* Mapping Details Text Button */}
             <button 
               onClick={() => setActiveTab(activeTab === 'mapping-details' ? 'workbook' : 'mapping-details')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all h-11 shrink-0 select-none cursor-pointer border",
+                "flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all h-11 shrink-0 select-none cursor-pointer border",
                 activeTab === 'mapping-details' 
-                  ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-lg shadow-amber-950/20" 
+                  ? "bg-slate-800 text-white border-slate-700 shadow-md" 
                   : "bg-slate-900/60 hover:bg-slate-850 border-slate-800 text-slate-400 hover:text-slate-300"
               )}
-              title={activeTab === 'mapping-details' ? "Collapse Mapping Details" : "Expand Mapping Details (Break point details)"}
+              title={activeTab === 'mapping-details' ? "Collapse Mapping Details" : "Expand Mapping Details"}
             >
-              <Terminal className={cn("w-3.5 h-3.5 text-amber-400 shrink-0", activeTab === 'mapping-details' ? "animate-pulse" : "")} />
-              <span className="hidden lg:inline text-[10px] uppercase tracking-wider font-extrabold">Mapping Details</span>
+              <span className="text-[10px] uppercase tracking-wider font-extrabold">Mapping Details</span>
+            </button>
+
+            {/* Terminal Breakpoint Icon — Bold Arrow Prompt Toggler */}
+            <button 
+              onClick={() => setActiveTab(activeTab === 'mapping-details' ? 'workbook' : 'mapping-details')}
+              className={cn(
+                "flex items-center justify-center w-11 h-11 rounded-xl transition-all shrink-0 cursor-pointer select-none border",
+                activeTab === 'mapping-details' 
+                  ? "bg-amber-500/10 border-amber-500/50 text-amber-300 shadow-lg shadow-amber-950/20" 
+                  : "bg-slate-900/60 hover:bg-slate-850 border-slate-800 text-amber-500 hover:text-amber-400"
+              )}
+              title={activeTab === 'mapping-details' ? "Collapse Break point details" : "Expand Break point details"}
+            >
+              <ChevronRight 
+                className="w-5 h-5 shrink-0" 
+                strokeWidth={3.5}
+              />
             </button>
 
             <div className="h-6 w-[1px] bg-slate-800 mx-1 shrink-0" />
@@ -14009,8 +14025,30 @@ KAUST ITSM Operational Control Desk`;
               const currentConfig = emailConfigs[currentModalProject] || {
                 recipients: DEFAULT_RECIPIENTS,
                 subject: DEFAULT_SUBJECT,
-                body: DEFAULT_BODY
+                body: DEFAULT_BODY,
+                reportFields: undefined
               };
+
+              // Available fields for dynamic report ledger customisation
+              const AVAILABLE_REPORT_FIELDS = [
+                { id: 'ticketId', label: 'Ticket ID' },
+                { id: 'projectId', label: 'Project ID' },
+                { id: 'supportLevel', label: 'Support Level' },
+                { id: 'priority', label: 'Severity / Priority' },
+                { id: 'status', label: 'Status' },
+                { id: 'assignedTo', label: 'Owner' },
+                { id: 'createdBy', label: 'Created By' },
+                { id: 'generationDate', label: 'Created At' },
+                { id: 'responseDate', label: 'Responded At' },
+                { id: 'closureDate', label: 'Closed At' },
+                { id: 'description', label: 'Description' },
+                { id: 'solution', label: 'Resolution' },
+                { id: 'category', label: 'Category' },
+                { id: 'subcategory', label: 'Subcategory' }
+              ];
+
+              const DEFAULT_REPORT_FIELDS = ['ticketId', 'priority', 'status', 'assignedTo', 'generationDate', 'description'];
+              const activeReportFields = currentConfig.reportFields || DEFAULT_REPORT_FIELDS;
 
               // Compute stats matching project and selected timeframe
               const now = new Date();
@@ -14081,7 +14119,7 @@ KAUST ITSM Operational Control Desk`;
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] RESOLVING MAIL EXCHANGER HOST: kaust-itsm-mx-01.edu`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] OPENING SAFE TLS CHANNEL ON PORT 587 (COMPLETED HANDSHAKE)`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] GATHERING OPERATIONAL LEDGER FOR PROJECT "${currentModalProject}"`,
-                  `[${format(new Date(), 'HH:mm:ss.SSS')}] INTEGRATING SPREADSHEET BUFFER (COMPILED ${total} RECORDS INTO DETAILED_LEDGER.xlsx)`,
+                  `[${format(new Date(), 'HH:mm:ss.SSS')}] INTEGRATING SPREADSHEET BUFFER (COMPILED ${total} RECORDS WITH ${activeReportFields.length} DYNAMIC COLUMNS [${activeReportFields.map(f => AVAILABLE_REPORT_FIELDS.find(af => af.id === f)?.label || f).join(', ')}] INTO DETAILED_LEDGER.xlsx)`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] RENDERING EXECUTIVE ANALYTICS AS INLINE BASE64 CANVAS VIRTUAL ATTACHMENT...`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] ASSEMBLING MULTIPART EMAIL PAYLOAD (SIZE: ${(total * 0.12 + 1.15).toFixed(2)} MB)`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] TRANSMITTING METADATA TO RECIPIENTS: [${currentConfig.recipients}]`,
@@ -14125,13 +14163,14 @@ KAUST ITSM Operational Control Desk`;
               };
 
               // Saving individual configuration
-              const handleSaveConfig = (recips: string, subj: string, bdy: string) => {
+              const handleSaveConfig = (recips: string, subj: string, bdy: string, fields?: string[]) => {
                 const updatedConfigs = {
                   ...emailConfigs,
                   [currentModalProject]: {
                     recipients: recips,
                     subject: subj,
-                    body: bdy
+                    body: bdy,
+                    reportFields: fields || activeReportFields
                   }
                 };
                 setEmailConfigs(updatedConfigs);
@@ -14425,33 +14464,113 @@ KAUST ITSM Operational Control Desk`;
                                       <thead className="bg-[#107c41] text-white sticky top-0 font-sans tracking-wide">
                                         <tr>
                                           <th className="p-2 border-r border-[#0d6133] col-index text-center w-8 bg-[#0a4d29]">ID</th>
-                                          <th className="p-2 border-r border-[#0d6133]">TICKET ID</th>
-                                          <th className="p-2 border-r border-[#0d6133]">SEVERITY</th>
-                                          <th className="p-2 border-r border-[#0d6133]">STATUS</th>
-                                          <th className="p-2 border-r border-[#0d6133]">OWNER</th>
-                                          <th className="p-2 border-r border-[#0d6133]">CREATION TIMESTAMP</th>
-                                          <th className="p-2">DESCRIPTION</th>
+                                          {activeReportFields.map((fieldId, fi) => {
+                                            const fObj = AVAILABLE_REPORT_FIELDS.find(f => f.id === fieldId);
+                                            const isLast = fi === activeReportFields.length - 1;
+                                            return (
+                                              <th 
+                                                key={fieldId} 
+                                                className={cn(
+                                                  "p-2 uppercase font-extrabold text-[9px]",
+                                                  !isLast && "border-r border-[#0d6133]"
+                                                )}
+                                              >
+                                                {fObj?.label || fieldId}
+                                              </th>
+                                            );
+                                          })}
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-900 bg-slate-950 text-slate-300">
                                         {targetedPeriodTasks.length === 0 ? (
                                           <tr>
-                                            <td colSpan={7} className="text-center p-8 text-slate-550 uppercase font-black tracking-widest text-[11px]">No matching incident rows for selected period frame.</td>
+                                            <td colSpan={activeReportFields.length + 1} className="text-center p-8 text-slate-550 uppercase font-black tracking-widest text-[11px]">No matching incident rows for selected period frame.</td>
                                           </tr>
                                         ) : (
                                           targetedPeriodTasks.map((t, idx) => (
                                             <tr key={t.id} className="hover:bg-slate-900">
                                               <td className="p-2 text-center border-r border-slate-850 bg-slate-900 font-bold font-sans text-slate-500">{idx+1}</td>
-                                              <td className="p-2 border-r border-slate-850 font-bold text-white uppercase">{t.ticketId}</td>
-                                              <td className="p-2 border-r border-slate-850 font-bold text-center">
-                                                <span style={{ color: PRIORITY_COLORS[t.priority] || '#fff' }}>{t.priority}</span>
-                                              </td>
-                                              <td className="p-2 border-r border-slate-850 font-bold">
-                                                <span style={{ color: STATUS_COLORS[t.status] || '#fff' }}>{t.status.toUpperCase()}</span>
-                                              </td>
-                                              <td className="p-2 border-r border-slate-850 font-bold text-slate-200">{t.assignedTo || 'Unassigned'}</td>
-                                              <td className="p-2 border-r border-slate-850 text-slate-450">{formatLogDate(t.generationDate)}</td>
-                                              <td className="p-2 truncate max-w-sm text-slate-400" title={t.description}>{t.description}</td>
+                                              {activeReportFields.map((fieldId, fi) => {
+                                                const isLast = fi === activeReportFields.length - 1;
+                                                
+                                                // Extract cell content and format
+                                                let cellVal: React.ReactNode = '';
+                                                let cellClass = "p-2 font-medium text-slate-300";
+                                                
+                                                switch (fieldId) {
+                                                  case 'ticketId':
+                                                    cellVal = t.ticketId;
+                                                    cellClass = "p-2 font-bold text-white uppercase";
+                                                    break;
+                                                  case 'projectId':
+                                                    cellVal = t.projectId;
+                                                    cellClass = "p-2 text-indigo-400 font-bold";
+                                                    break;
+                                                  case 'supportLevel':
+                                                    cellVal = t.supportLevel;
+                                                    cellClass = "p-2 text-sky-400 font-bold";
+                                                    break;
+                                                  case 'priority':
+                                                    cellVal = <span style={{ color: PRIORITY_COLORS[t.priority] || '#fff' }}>{t.priority}</span>;
+                                                    cellClass = "p-2 font-bold text-center";
+                                                    break;
+                                                  case 'status':
+                                                    cellVal = <span style={{ color: STATUS_COLORS[t.status] || '#fff' }}>{t.status.toUpperCase()}</span>;
+                                                    cellClass = "p-2 font-bold";
+                                                    break;
+                                                  case 'assignedTo':
+                                                    cellVal = t.assignedTo || 'Unassigned';
+                                                    cellClass = "p-2 font-semibold text-slate-200";
+                                                    break;
+                                                  case 'createdBy':
+                                                    cellVal = t.createdBy || 'System';
+                                                    cellClass = "p-2 text-slate-400";
+                                                    break;
+                                                  case 'generationDate':
+                                                    cellVal = formatLogDate(t.generationDate);
+                                                    cellClass = "p-2 text-slate-450";
+                                                    break;
+                                                  case 'responseDate':
+                                                    cellVal = t.responseDate ? formatLogDate(t.responseDate) : 'N/A';
+                                                    cellClass = "p-2 text-slate-450";
+                                                    break;
+                                                  case 'closureDate':
+                                                    cellVal = t.closureDate ? formatLogDate(t.closureDate) : '—';
+                                                    cellClass = "p-2 text-slate-500";
+                                                    break;
+                                                  case 'description':
+                                                    cellVal = t.description;
+                                                    cellClass = "p-2 truncate max-w-sm text-slate-400";
+                                                    break;
+                                                  case 'solution':
+                                                    cellVal = t.solution || '—';
+                                                    cellClass = "p-2 truncate max-w-xs text-slate-400";
+                                                    break;
+                                                  case 'category':
+                                                    cellVal = t.category || '—';
+                                                    cellClass = "p-2 text-slate-450";
+                                                    break;
+                                                  case 'subcategory':
+                                                    cellVal = t.subcategory || '—';
+                                                    cellClass = "p-2 text-slate-450";
+                                                    break;
+                                                  default:
+                                                    break;
+                                                }
+                                                
+                                                return (
+                                                  <td 
+                                                    key={fieldId} 
+                                                    className={cn(
+                                                      cellClass,
+                                                      !isLast && "border-r border-slate-850"
+                                                    )}
+                                                    title={typeof cellVal === 'string' ? cellVal : undefined}
+                                                  >
+                                                    {cellVal}
+                                                  </td>
+                                                );
+                                              })}
                                             </tr>
                                           ))
                                         )}
@@ -14655,6 +14774,182 @@ KAUST ITSM Operational Control Desk`;
                                 className="w-full bg-slate-950 border border-slate-850 text-slate-350 font-medium font-sans text-xs p-3.5 rounded-xl focus:outline-none focus:border-indigo-500 custom-scrollbar h-64 select-text"
                                 required
                               />
+                            </div>
+
+                            {/* Configurable Report Fields */}
+                            <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-3">
+                              <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                                <div className="flex gap-2 items-center">
+                                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                                  <label className="block text-[11px] text-slate-200 uppercase tracking-wider font-extrabold">Configurable Excel Report Fields:</label>
+                                </div>
+                                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-mono font-bold uppercase animate-pulse">
+                                  {activeReportFields.length} selected
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 leading-normal mb-3">
+                                Select or custom-configure the database fields containing ticket metadata to populate the dynamic auditing Excel table.
+                              </p>
+                              
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                                {AVAILABLE_REPORT_FIELDS.map(field => {
+                                  const isChecked = activeReportFields.includes(field.id);
+                                  return (
+                                    <label 
+                                      key={field.id}
+                                      className={cn(
+                                        "flex items-center gap-2.5 p-2 rounded-xl border text-[11px] cursor-pointer select-none transition-all",
+                                        isChecked 
+                                          ? "bg-emerald-950/20 border-emerald-500/40 text-emerald-300 antialiased" 
+                                          : "bg-slate-900 border-slate-850 text-slate-450 hover:bg-slate-850/60"
+                                      )}
+                                    >
+                                      <input 
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          let newFields = [...activeReportFields];
+                                          if (e.target.checked) {
+                                            if (!newFields.includes(field.id)) {
+                                              newFields.push(field.id);
+                                            }
+                                          } else {
+                                            newFields = newFields.filter(f => f !== field.id);
+                                          }
+                                          const updatedConfigs = {
+                                            ...emailConfigs,
+                                            [currentModalProject]: {
+                                              ...currentConfig,
+                                              reportFields: newFields
+                                            }
+                                          };
+                                          setEmailConfigs(updatedConfigs);
+                                          localStorage.setItem('sflow_email_configs', JSON.stringify(updatedConfigs));
+                                        }}
+                                        className="h-3.5 w-3.5 accent-emerald-500 cursor-pointer"
+                                      />
+                                      <span className="font-bold">{field.label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* Column Reordering Control */}
+                              {activeReportFields.length > 0 && (
+                                <div className="space-y-3 p-4 bg-slate-900 rounded-xl border border-slate-850/80">
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-300 uppercase tracking-wider font-extrabold">
+                                    <ArrowUpDown className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                                    <span>Drag or Sequence Column Order (Left to Right):</span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 leading-normal">
+                                    Click the left and right arrows on the column badges below to organize their placement order in the dynamic auditing spreadsheet table.
+                                  </p>
+                                  <div className="flex flex-wrap gap-2 pt-1">
+                                    {activeReportFields.map((fieldId, fi) => {
+                                      const fObj = AVAILABLE_REPORT_FIELDS.find(f => f.id === fieldId);
+                                      if (!fObj) return null;
+                                      return (
+                                        <div 
+                                          key={fieldId} 
+                                          className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-[11px] text-white font-bold whitespace-nowrap group select-none transition-all hover:border-slate-700"
+                                        >
+                                          <span className="text-slate-300">{fObj.label}</span>
+                                          <div className="flex items-center gap-1 ml-2 border-l border-slate-800 pl-2">
+                                            <button
+                                              type="button"
+                                              disabled={fi === 0}
+                                              onClick={() => {
+                                                const updated = [...activeReportFields];
+                                                // Swap with previous
+                                                const temp = updated[fi];
+                                                updated[fi] = updated[fi - 1];
+                                                updated[fi - 1] = temp;
+                                                
+                                                const updatedConfigs = {
+                                                  ...emailConfigs,
+                                                  [currentModalProject]: {
+                                                    ...currentConfig,
+                                                    reportFields: updated
+                                                  }
+                                                };
+                                                setEmailConfigs(updatedConfigs);
+                                                localStorage.setItem('sflow_email_configs', JSON.stringify(updatedConfigs));
+                                              }}
+                                              className="p-0.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer h-5 w-5 flex items-center justify-center border border-slate-850 hover:border-slate-700"
+                                              title="Move left / earlier"
+                                            >
+                                              <ChevronLeft className="w-3 w-3" />
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={fi === activeReportFields.length - 1}
+                                              onClick={() => {
+                                                const updated = [...activeReportFields];
+                                                // Swap with next
+                                                const temp = updated[fi];
+                                                updated[fi] = updated[fi + 1];
+                                                updated[fi + 1] = temp;
+                                                
+                                                const updatedConfigs = {
+                                                  ...emailConfigs,
+                                                  [currentModalProject]: {
+                                                    ...currentConfig,
+                                                    reportFields: updated
+                                                  }
+                                                };
+                                                setEmailConfigs(updatedConfigs);
+                                                localStorage.setItem('sflow_email_configs', JSON.stringify(updatedConfigs));
+                                              }}
+                                              className="p-0.5 hover:bg-slate-800 rounded text-slate-400 hover:text-white disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer h-5 w-5 flex items-center justify-center border border-slate-850 hover:border-slate-700"
+                                              title="Move right / later"
+                                            >
+                                              <ChevronRight className="w-3 w-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div className="flex gap-2 pt-2 border-t border-slate-900 justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allIds = AVAILABLE_REPORT_FIELDS.map(f => f.id);
+                                    const updatedConfigs = {
+                                      ...emailConfigs,
+                                      [currentModalProject]: {
+                                        ...currentConfig,
+                                        reportFields: allIds
+                                      }
+                                    };
+                                    setEmailConfigs(updatedConfigs);
+                                    localStorage.setItem('sflow_email_configs', JSON.stringify(updatedConfigs));
+                                  }}
+                                  className="text-[9px] uppercase font-black tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all font-sans cursor-pointer"
+                                >
+                                  Select All
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updatedConfigs = {
+                                      ...emailConfigs,
+                                      [currentModalProject]: {
+                                        ...currentConfig,
+                                        reportFields: DEFAULT_REPORT_FIELDS
+                                      }
+                                    };
+                                    setEmailConfigs(updatedConfigs);
+                                    localStorage.setItem('sflow_email_configs', JSON.stringify(updatedConfigs));
+                                  }}
+                                  className="text-[9px] uppercase font-black tracking-wider text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all font-sans cursor-pointer"
+                                >
+                                  Reset to Defaults
+                                </button>
+                              </div>
                             </div>
                           </div>
 
