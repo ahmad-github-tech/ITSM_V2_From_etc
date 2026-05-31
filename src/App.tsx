@@ -5613,7 +5613,7 @@ Guidelines:
           </div>
 
           {/* Right portion: Views & Administration tabs */}
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             
             {/* If screen is not xl, show compact filters */}
             <div className="flex xl:hidden items-center gap-1 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850 shrink-0">
@@ -5642,7 +5642,7 @@ Guidelines:
                   title="Configure Project Teams & Workspaces"
                 >
                   <Settings className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="hidden xl:inline">Configuration</span>
+                  <span className="hidden 2xl:inline">Configuration</span>
                 </button>
               )}
               
@@ -5655,7 +5655,7 @@ Guidelines:
                 title="View active project mapping details and parameters"
               >
                 <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="hidden xl:inline">Mapping Details</span>
+                <span className="hidden 2xl:inline">Mapping Details</span>
               </button>
               
               {isManagerOrAdmin && (
@@ -5668,7 +5668,7 @@ Guidelines:
                   title="Manage and onboard user directory profiles"
                 >
                   <Users className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                  <span className="hidden xl:inline">User Onboard</span>
+                  <span className="hidden 2xl:inline">User Onboard</span>
                 </button>
               )}
             </div>
@@ -5679,7 +5679,7 @@ Guidelines:
                 className="btn-secondary flex items-center gap-2 group whitespace-nowrap py-1.5 h-11"
               >
                 <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                <span className="hidden lg:inline">Export Report</span>
+                <span className="hidden 2xl:inline">Export Report</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isExportDropdownOpen && "rotate-180")} />
               </button>
 
@@ -5726,7 +5726,7 @@ Guidelines:
               >
                 {currentUser?.substring(0, 2)}
               </div>
-              <div className="hidden xl:block text-left">
+              <div className="hidden 2xl:block text-left">
                 <p className="text-[10px] text-white font-black uppercase tracking-tight leading-none">{currentLoggedInUserObj?.name || currentUser}</p>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide mt-0.5 leading-none">{currentLoggedInUserObj?.role || (isAdmin ? "Administrator" : "User")}</p>
                 {lastLoginTime ? (
@@ -5745,7 +5745,7 @@ Guidelines:
                 title="Log Out secure session"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                <span className="hidden lg:inline">Log Out</span>
+                <span className="hidden 2xl:inline">Log Out</span>
               </button>
             </div>
 
@@ -5757,7 +5757,7 @@ Guidelines:
                 title="Customize Application Theme"
               >
                 <Palette className="w-3.5 h-3.5 text-violet-400 group-hover:rotate-12 transition-transform shrink-0" />
-                <span className="text-[10px] uppercase tracking-wider font-black hidden lg:inline">Theme</span>
+                <span className="text-[10px] uppercase tracking-wider font-black hidden 2xl:inline">Theme</span>
               </button>
 
               <AnimatePresence>
