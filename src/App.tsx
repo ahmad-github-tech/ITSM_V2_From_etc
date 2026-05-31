@@ -5631,8 +5631,8 @@ Guidelines:
                 </select>
             </div>
 
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800 shrink-0">
-              {isManagerOrAdmin && (
+            {isManagerOrAdmin && (
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800 shrink-0">
                 <button 
                   onClick={() => setActiveTab('settings')}
                   className={cn(
@@ -5644,21 +5644,7 @@ Guidelines:
                   <Settings className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span className="hidden 2xl:inline">Configuration</span>
                 </button>
-              )}
-              
-              <button 
-                onClick={() => setActiveTab('mapping-details')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                  activeTab === 'mapping-details' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
-                )}
-                title="View active project mapping details and parameters"
-              >
-                <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="hidden 2xl:inline">Mapping Details</span>
-              </button>
-              
-              {isManagerOrAdmin && (
+                
                 <button 
                   onClick={() => setActiveTab('user-onboard')}
                   className={cn(
@@ -5670,8 +5656,8 @@ Guidelines:
                   <Users className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   <span className="hidden 2xl:inline">User Onboard</span>
                 </button>
-              )}
-            </div>
+              </div>
+            )}
             
             <div className="relative shrink-0">
               <button 
@@ -5716,6 +5702,21 @@ Guidelines:
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Terminal/Breakpoint Toggle custom button positioned perfectly after Export Report Section */}
+            <button 
+              onClick={() => setActiveTab(activeTab === 'mapping-details' ? 'workbook' : 'mapping-details')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all h-11 shrink-0 select-none cursor-pointer border",
+                activeTab === 'mapping-details' 
+                  ? "bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-lg shadow-amber-950/20" 
+                  : "bg-slate-900/60 hover:bg-slate-850 border-slate-800 text-slate-400 hover:text-slate-300"
+              )}
+              title={activeTab === 'mapping-details' ? "Collapse Mapping Details" : "Expand Mapping Details (Break point details)"}
+            >
+              <Terminal className={cn("w-3.5 h-3.5 text-amber-400 shrink-0", activeTab === 'mapping-details' ? "animate-pulse" : "")} />
+              <span className="hidden lg:inline text-[10px] uppercase tracking-wider font-extrabold">Mapping Details</span>
+            </button>
 
             <div className="h-6 w-[1px] bg-slate-800 mx-1 shrink-0" />
 
