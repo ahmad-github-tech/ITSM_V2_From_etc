@@ -2473,7 +2473,7 @@ Signatures Registered:
     let riskLow = 0;
     let activeOpenCount = 0;
 
-    distributionTasks.forEach(t => {
+    currentTasks.forEach(t => {
       const nowString = now.toISOString();
       const sla = getTaskSlaTimes(t, nowString);
 
@@ -4054,6 +4054,36 @@ Guidelines:
   };
 
   const filteredTasks = projectFilteredTasks.filter(t => {
+    // 0. Filter by time window/period selection matching trendPeriod
+    const now = new Date();
+    let periodStart: Date;
+    let periodEnd = now;
+
+    if (trendPeriod === 'daily') {
+      periodStart = startOfDay(now);
+    } else if (trendPeriod === 'weekly') {
+      periodStart = subDays(now, 7);
+    } else if (trendPeriod === 'monthly') {
+      periodStart = subDays(now, 30);
+    } else if (trendPeriod === 'quarterly') {
+      periodStart = subDays(now, 91);
+    } else {
+      const s = parseISO(customStartDate);
+      const e = parseISO(customEndDate);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+        periodStart = new Date(0);
+        periodEnd = new Date(0);
+      } else {
+        periodStart = startOfDay(s);
+        periodEnd = endOfDay(e);
+      }
+    }
+
+    const genDate = parseISO(t.generationDate);
+    if (genDate < periodStart || genDate > periodEnd) {
+      return false;
+    }
+
     // 1. Search query match
     const query = (searchQuery || '').toLowerCase();
     let matchQuery = true;
