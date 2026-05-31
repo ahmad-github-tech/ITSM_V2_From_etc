@@ -990,7 +990,7 @@ Signatures Registered:
     return [];
   });
   
-  const [emailConfigs, setEmailConfigs] = useState<{[key: string]: { recipients: string; subject: string; body: string; reportFields?: string[]; }}> (() => {
+  const [emailConfigs, setEmailConfigs] = useState<{[key: string]: { recipients: string; subject: string; body: string; reportFields?: string[]; excelFilename?: string; pdfFilename?: string; }}> (() => {
     const saved = localStorage.getItem('sflow_email_configs');
     if (saved) {
       try {
@@ -1007,6 +1007,8 @@ Signatures Registered:
   const [smtpLogEvents, setSmtpLogEvents] = useState<string[]>([]);
   const [smtpDispatchSuccess, setSmtpDispatchSuccess] = useState(false);
   const [smtpDispatchedMetadata, setSmtpDispatchedMetadata] = useState<any>(null);
+  const [isEmailCopied, setIsEmailCopied] = useState(false);
+  const [isSubjectCopied, setIsSubjectCopied] = useState(false);
 
   // Change & Release Management States
   const [changeReleaseRecords, setChangeReleaseRecords] = useState<any[]>(() => {
@@ -14021,12 +14023,17 @@ If you require adjustments to security classifications, additional data metrics,
 Best Regards,
 KAUST ITSM Operational Control Desk`;
 
+              const DEFAULT_EXCEL_FILENAME = `{ProjectName}_Audit.xlsx`;
+              const DEFAULT_PDF_FILENAME = `{ProjectName}_Performance.pdf`;
+
               // Merged current project config with fallbacks
-              const currentConfig = emailConfigs[currentModalProject] || {
-                recipients: DEFAULT_RECIPIENTS,
-                subject: DEFAULT_SUBJECT,
-                body: DEFAULT_BODY,
-                reportFields: undefined
+              const currentConfig = {
+                recipients: emailConfigs[currentModalProject]?.recipients ?? DEFAULT_RECIPIENTS,
+                subject: emailConfigs[currentModalProject]?.subject ?? DEFAULT_SUBJECT,
+                body: emailConfigs[currentModalProject]?.body ?? DEFAULT_BODY,
+                reportFields: emailConfigs[currentModalProject]?.reportFields,
+                excelFilename: emailConfigs[currentModalProject]?.excelFilename ?? DEFAULT_EXCEL_FILENAME,
+                pdfFilename: emailConfigs[currentModalProject]?.pdfFilename ?? DEFAULT_PDF_FILENAME
               };
 
               // Available fields for dynamic report ledger customisation
@@ -14106,6 +14113,8 @@ KAUST ITSM Operational Control Desk`;
 
               const resolvedSubject = resolveTemplate(currentConfig.subject);
               const resolvedBody = resolveTemplate(currentConfig.body);
+              const resolvedExcelFilename = resolveTemplate(currentConfig.excelFilename || DEFAULT_EXCEL_FILENAME);
+              const resolvedPdfFilename = resolveTemplate(currentConfig.pdfFilename || DEFAULT_PDF_FILENAME);
 
               // SMTP transmission handler
               const handleTriggerEmailSend = () => {
@@ -14119,7 +14128,7 @@ KAUST ITSM Operational Control Desk`;
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] RESOLVING MAIL EXCHANGER HOST: kaust-itsm-mx-01.edu`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] OPENING SAFE TLS CHANNEL ON PORT 587 (COMPLETED HANDSHAKE)`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] GATHERING OPERATIONAL LEDGER FOR PROJECT "${currentModalProject}"`,
-                  `[${format(new Date(), 'HH:mm:ss.SSS')}] INTEGRATING SPREADSHEET BUFFER (COMPILED ${total} RECORDS WITH ${activeReportFields.length} DYNAMIC COLUMNS [${activeReportFields.map(f => AVAILABLE_REPORT_FIELDS.find(af => af.id === f)?.label || f).join(', ')}] INTO DETAILED_LEDGER.xlsx)`,
+                  `[${format(new Date(), 'HH:mm:ss.SSS')}] INTEGRATING SPREADSHEET BUFFER (COMPILED ${total} RECORDS WITH ${activeReportFields.length} DYNAMIC COLUMNS [${activeReportFields.map(f => AVAILABLE_REPORT_FIELDS.find(af => af.id === f)?.label || f).join(', ')}] INTO ${resolvedExcelFilename})`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] RENDERING EXECUTIVE ANALYTICS AS INLINE BASE64 CANVAS VIRTUAL ATTACHMENT...`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] ASSEMBLING MULTIPART EMAIL PAYLOAD (SIZE: ${(total * 0.12 + 1.15).toFixed(2)} MB)`,
                   `[${format(new Date(), 'HH:mm:ss.SSS')}] TRANSMITTING METADATA TO RECIPIENTS: [${currentConfig.recipients}]`,
@@ -14163,14 +14172,16 @@ KAUST ITSM Operational Control Desk`;
               };
 
               // Saving individual configuration
-              const handleSaveConfig = (recips: string, subj: string, bdy: string, fields?: string[]) => {
+              const handleSaveConfig = (recips: string, subj: string, bdy: string, fields?: string[], xlsF?: string, pdfF?: string) => {
                 const updatedConfigs = {
                   ...emailConfigs,
                   [currentModalProject]: {
                     recipients: recips,
                     subject: subj,
                     body: bdy,
-                    reportFields: fields || activeReportFields
+                    reportFields: fields || activeReportFields,
+                    excelFilename: xlsF !== undefined ? xlsF : currentConfig.excelFilename,
+                    pdfFilename: pdfF !== undefined ? pdfF : currentConfig.pdfFilename
                   }
                 };
                 setEmailConfigs(updatedConfigs);
@@ -14348,7 +14359,7 @@ KAUST ITSM Operational Control Desk`;
                                     <FileSpreadsheet className="w-8 h-8 text-emerald-400 shrink-0 mt-0.5" />
                                     <div className="overflow-hidden">
                                       <span className="font-mono text-[9px] uppercase tracking-wider block text-slate-500">Spreadsheet Ledger</span>
-                                      <span className="text-xs font-black block text-slate-200 truncate mt-0.5">{currentModalProject}_Audit.xlsx</span>
+                                      <span className="text-xs font-black block text-slate-200 truncate mt-0.5">{resolvedExcelFilename}</span>
                                       <span className="text-[9px] text-emerald-500 font-bold block mt-1">✔ {total} audit records mapped</span>
                                     </div>
                                   </button>
@@ -14369,7 +14380,7 @@ KAUST ITSM Operational Control Desk`;
                                     <FileText className="w-8 h-8 text-rose-400 shrink-0 mt-0.5" />
                                     <div className="overflow-hidden">
                                       <span className="font-mono text-[9px] uppercase tracking-wider block text-slate-500">Executive PDF Digest</span>
-                                      <span className="text-xs font-black block text-slate-200 truncate mt-0.5">{currentModalProject}_Performance.pdf</span>
+                                      <span className="text-xs font-black block text-slate-200 truncate mt-0.5">{resolvedPdfFilename}</span>
                                       <span className="text-[9px] text-rose-500 font-bold block mt-1">✔ {finalSlaRate}% SLA Rating</span>
                                     </div>
                                   </button>
@@ -14392,26 +14403,155 @@ KAUST ITSM Operational Control Desk`;
                                   </div>
                                 </div>
                               ) : smtpDispatchSuccess && smtpDispatchedMetadata ? (
-                                <div className="bg-emerald-950/10 border border-emerald-500/30 p-4 rounded-2xl space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                                    <span className="text-xs font-black text-emerald-400 uppercase tracking-widest font-sans">DISPATCH CONFIRMED</span>
+                                <div className="space-y-4">
+                                  {/* Confirmed Visuals Banner */}
+                                  <div className="bg-emerald-950/10 border border-emerald-500/30 p-4 rounded-2xl space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                      <span className="text-xs font-black text-emerald-400 uppercase tracking-widest font-sans">DISPATCH TELEMETRY COMPILED</span>
+                                    </div>
+                                    <p className="font-sans text-[10.5px] text-slate-300 leading-relaxed font-bold">
+                                      Telemetry package successfully compiled inside your browser! Since outbound SMTP connections are simulated inside this client-side sandboxed playground, please use any of the active bridges below to instantly route the report components to your actual inbox at <span className="text-emerald-400 font-bold">{smtpDispatchedMetadata.recipients}</span>.
+                                    </p>
+                                    <div className="font-mono text-[9px] text-slate-400 flex flex-wrap gap-x-4 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/60">
+                                      <div>ID: <span className="text-white font-bold">{smtpDispatchedMetadata.id}</span></div>
+                                      <div>Recipients: <span className="text-indigo-400 font-bold">{smtpDispatchedMetadata.recipients.split(',').length} addresses</span></div>
+                                    </div>
                                   </div>
-                                  <p className="font-sans text-[10.5px] text-slate-300 leading-relaxed font-bold">
-                                    Telemetry package compiled, and successfully transmitted using SMTP secure handshake!
-                                  </p>
-                                  <div className="font-mono text-[9px] text-slate-450 flex flex-wrap gap-x-4">
-                                    <div>ID: <span className="text-white font-bold">{smtpDispatchedMetadata.id}</span></div>
-                                    <div>Recipients: <span className="text-white font-bold">{smtpDispatchedMetadata.recipients.split(',').length} addresses</span></div>
+
+                                  {/* Active Mail Dispatch Bridges Actions Suite */}
+                                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-3.5">
+                                    <div className="flex gap-2 items-center border-b border-slate-850 pb-2">
+                                      <Mail className="w-4 h-4 text-indigo-400" />
+                                      <h5 className="text-[10px] font-extrabold text-white uppercase tracking-wider">Active Outbox Dispatch Bridges</h5>
+                                    </div>
+
+                                    <div className="space-y-2.5">
+                                      {/* Action 1: Download Customized Ledger */}
+                                      <div className="space-y-1 bg-slate-900/60 p-3 rounded-xl border border-slate-850">
+                                        <div className="flex items-center justify-between">
+                                          <div className="text-[10.5px] text-white font-bold">1. Download Custom Spreadsheet Report</div>
+                                          <span className="text-[8px] uppercase tracking-wider bg-emerald-500/10 text-emerald-400 font-bold px-1.5 py-0.5 rounded border border-emerald-400/15">
+                                            {activeReportFields.length} Columns
+                                          </span>
+                                        </div>
+                                        <p className="text-[9.5px] text-slate-400 leading-relaxed">
+                                          Download the live spreadsheet audit ledger tailored to your selected columns and ordering.
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const sheetData = targetedPeriodTasks.map((t, idx) => {
+                                              const rowObj: Record<string, any> = { 'S.No': idx + 1 };
+                                              activeReportFields.forEach(fieldId => {
+                                                const fObj = AVAILABLE_REPORT_FIELDS.find(f => f.id === fieldId);
+                                                const label = fObj ? fObj.label : fieldId;
+                                                
+                                                let val = '';
+                                                switch (fieldId) {
+                                                  case 'ticketId': val = t.ticketId; break;
+                                                  case 'projectId': val = t.projectId; break;
+                                                  case 'supportLevel': val = t.supportLevel; break;
+                                                  case 'priority': val = t.priority; break;
+                                                  case 'status': val = t.status; break;
+                                                  case 'assignedTo': val = t.assignedTo || 'Unassigned'; break;
+                                                  case 'createdBy': val = t.createdBy || 'System'; break;
+                                                  case 'generationDate': val = formatLogDate(t.generationDate); break;
+                                                  case 'responseDate': val = t.responseDate ? formatLogDate(t.responseDate) : 'N/A'; break;
+                                                  case 'closureDate': val = t.closureDate ? formatLogDate(t.closureDate) : '—'; break;
+                                                  case 'description': val = t.description; break;
+                                                  case 'solution': val = t.solution || '—'; break;
+                                                  case 'category': val = t.category || '—'; break;
+                                                  case 'subcategory': val = t.subcategory || '—'; break;
+                                                  default: break;
+                                                }
+                                                rowObj[label] = val;
+                                              });
+                                              return rowObj;
+                                            });
+
+                                            const sheets = [
+                                              { name: `${currentModalProject}_Audit`, data: sheetData }
+                                            ];
+                                            exportToExcel(sheets, resolvedExcelFilename);
+                                          }}
+                                          className="w-full mt-1.5 py-2 bg-emerald-600 hover:bg-emerald-555 active:bg-emerald-700 text-white font-bold text-[10px] rounded-lg tracking-wider uppercase transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                                        >
+                                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                                          Download {resolvedExcelFilename}
+                                        </button>
+                                      </div>
+
+                                      {/* Action 2: mailto Link */}
+                                      <div className="space-y-1 bg-slate-900/60 p-3 rounded-xl border border-slate-850">
+                                        <div className="text-[10.5px] text-white font-bold">2. Trigger Local Mail App to Transmit</div>
+                                        <p className="text-[9.5px] text-slate-400 leading-relaxed">
+                                          Opens your local email client (Outlook, Mac Mail, Gmail App) pre-populated with recipient lists and formatted analytical metrics.
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const recipientsEncoded = encodeURIComponent(currentConfig.recipients);
+                                            const subjectEncoded = encodeURIComponent(resolvedSubject);
+                                            const bodyEncoded = encodeURIComponent(
+                                              `*** PLEASE ATTACH THE DOWN LAODED "${resolvedExcelFilename}" TO THIS MAIL MANUALY ***\n\n` + 
+                                              resolvedBody
+                                            );
+                                            window.open(`mailto:${recipientsEncoded}?subject=${subjectEncoded}&body=${bodyEncoded}`, '_self');
+                                          }}
+                                          className="w-full mt-1.5 py-2 bg-indigo-600 hover:bg-indigo-555 active:bg-indigo-700 text-white font-bold text-[10px] rounded-lg tracking-wider uppercase transition-colors flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                                        >
+                                          <Mail className="w-3.5 h-3.5" />
+                                          Open Client & Load Template
+                                        </button>
+                                      </div>
+
+                                      {/* Action 3: Copy subject and body */}
+                                      <div className="space-y-2 bg-slate-900/60 p-3 rounded-xl border border-slate-850 flex flex-col md:flex-row gap-2.5 items-center justify-between">
+                                        <div className="space-y-0.5 text-center md:text-left">
+                                          <div className="text-[10.5px] text-white font-bold">3. Copy Dispatch Credentials</div>
+                                          <p className="text-[9px] text-slate-450 leading-normal">
+                                            Handy for copy-pasting directly into secure browser webmail tabs.
+                                          </p>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0 w-full md:w-auto">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(resolvedSubject);
+                                              setIsSubjectCopied(true);
+                                              setTimeout(() => setIsSubjectCopied(false), 2000);
+                                            }}
+                                            className="flex-1 md:flex-none border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[9.5px] font-extrabold uppercase transition-all flex items-center gap-1 justify-center cursor-pointer bg-transparent"
+                                          >
+                                            {isSubjectCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                            {isSubjectCopied ? 'Copied Subj' : 'Copy Subject'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(resolvedBody);
+                                              setIsEmailCopied(true);
+                                              setTimeout(() => setIsEmailCopied(false), 2000);
+                                            }}
+                                            className="flex-1 md:flex-none border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[9.5px] font-extrabold uppercase transition-all flex items-center gap-1 justify-center cursor-pointer bg-transparent"
+                                          >
+                                            {isEmailCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                            {isEmailCopied ? 'Copied Body' : 'Copy Body'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
+
                                   <button
                                     onClick={() => {
                                       setSmtpDispatchSuccess(false);
                                       setSmtpDispatchedMetadata(null);
                                     }}
-                                    className="text-[9px] uppercase font-black text-indigo-400 hover:text-white block mt-1"
+                                    className="text-[10px] uppercase font-black text-slate-400 hover:text-white block tracking-widest text-center mt-1 border border-slate-850 hover:border-slate-800 bg-slate-950/30 hover:bg-slate-900 py-2 rounded-lg w-full transition-all cursor-pointer"
                                   >
-                                    Reset Dispatcher state
+                                    Reset Outbox & Compose New Report
                                   </button>
                                 </div>
                               ) : (
@@ -14447,7 +14587,7 @@ KAUST ITSM Operational Control Desk`;
                                     <div className="flex items-center gap-2">
                                       <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
                                       <div>
-                                        <span className="font-sans text-xs font-black text-white">{currentModalProject}_Audit_Ledger.xlsx</span>
+                                        <span className="font-sans text-xs font-black text-white">{resolvedExcelFilename}</span>
                                         <span className="text-[9px] text-emerald-500 font-bold block leading-none mt-0.5">Spreadsheet Data Matrix ({targetedPeriodTasks.length} rows)</span>
                                       </div>
                                     </div>
@@ -14585,7 +14725,7 @@ KAUST ITSM Operational Control Desk`;
                                     <div className="flex items-center gap-2">
                                       <FileText className="w-5 h-5 text-rose-500" />
                                       <div>
-                                        <span className="font-sans text-xs font-black text-white">{currentModalProject}_Performance.pdf</span>
+                                        <span className="font-sans text-xs font-black text-white">{resolvedPdfFilename}</span>
                                         <span className="text-[9px] text-rose-500 font-bold block leading-none mt-0.5">Mock PDF document render of service matrices</span>
                                       </div>
                                     </div>
@@ -14704,7 +14844,9 @@ KAUST ITSM Operational Control Desk`;
                             const recips = formData.get('recipients') as string;
                             const subj = formData.get('subject') as string;
                             const bdy = formData.get('body') as string;
-                            handleSaveConfig(recips, subj, bdy);
+                            const xlsF = formData.get('excelFilename') as string;
+                            const pdfF = formData.get('pdfFilename') as string;
+                            handleSaveConfig(recips, subj, bdy, undefined, xlsF, pdfF);
                           }}
                           className="space-y-6 max-w-4xl mx-auto bg-slate-900/30 p-6 border border-slate-800 rounded-3xl"
                         >
@@ -14760,6 +14902,34 @@ KAUST ITSM Operational Control Desk`;
                                 className="w-full bg-slate-950 border border-slate-850 text-slate-200 font-bold text-xs p-3 rounded-xl focus:outline-none focus:border-indigo-500"
                                 required
                               />
+                            </div>
+
+                            {/* Configurable Attachment Filenames */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] text-slate-400 uppercase tracking-wider font-extrabold mb-1">Spreadsheet Attachment Filename Pattern:</label>
+                                <input
+                                  type="text"
+                                  name="excelFilename"
+                                  key={`${currentModalProject}-excelFilename`}
+                                  defaultValue={currentConfig.excelFilename}
+                                  placeholder="{ProjectName}_Audit.xlsx"
+                                  className="w-full bg-slate-950 border border-slate-850 text-slate-250 font-mono text-xs p-3 rounded-xl focus:outline-none focus:border-indigo-500"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-slate-400 uppercase tracking-wider font-extrabold mb-1">PDF Attachment Filename Pattern:</label>
+                                <input
+                                  type="text"
+                                  name="pdfFilename"
+                                  key={`${currentModalProject}-pdfFilename`}
+                                  defaultValue={currentConfig.pdfFilename}
+                                  placeholder="{ProjectName}_Performance.pdf"
+                                  className="w-full bg-slate-950 border border-slate-850 text-slate-250 font-mono text-xs p-3 rounded-xl focus:outline-none focus:border-indigo-500"
+                                  required
+                                />
+                              </div>
                             </div>
 
                             {/* Body Text Editor Entry */}
