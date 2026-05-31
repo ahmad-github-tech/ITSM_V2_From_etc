@@ -5613,10 +5613,10 @@ Guidelines:
           </div>
 
           {/* Right portion: Views & Administration tabs */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             
             {/* If screen is not xl, show compact filters */}
-            <div className="flex xl:hidden items-center gap-1 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850">
+            <div className="flex xl:hidden items-center gap-1 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850 shrink-0">
                <select 
                   className="bg-transparent text-[10px] font-black text-slate-400 outline-none px-2 rounded hover:text-white transition-colors h-6 cursor-pointer"
                   value={selectedProject}
@@ -5626,12 +5626,12 @@ Guidelines:
                     <option value="All">All Projs</option>
                   )}
                   {projectConfigs
-                    .filter(p => isManagerOrAdmin || userMappedProjects.includes(p.projectId))
-                    .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
+                     .filter(p => isManagerOrAdmin || userMappedProjects.includes(p.projectId))
+                     .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
                 </select>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800 shrink-0">
               {isManagerOrAdmin && (
                 <button 
                   onClick={() => setActiveTab('settings')}
@@ -5639,9 +5639,10 @@ Guidelines:
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                     activeTab === 'settings' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
                   )}
+                  title="Configure Project Teams & Workspaces"
                 >
                   <Settings className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span className="hidden md:inline">Configuration</span>
+                  <span className="hidden xl:inline">Configuration</span>
                 </button>
               )}
               
@@ -5651,9 +5652,10 @@ Guidelines:
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                   activeTab === 'mapping-details' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
                 )}
+                title="View active project mapping details and parameters"
               >
                 <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="hidden md:inline">Mapping Details</span>
+                <span className="hidden xl:inline">Mapping Details</span>
               </button>
               
               {isManagerOrAdmin && (
@@ -5663,20 +5665,21 @@ Guidelines:
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                     activeTab === 'user-onboard' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
                   )}
+                  title="Manage and onboard user directory profiles"
                 >
                   <Users className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                  <span className="hidden md:inline">User Onboard</span>
+                  <span className="hidden xl:inline">User Onboard</span>
                 </button>
               )}
             </div>
             
-            <div className="relative">
+            <div className="relative shrink-0">
               <button 
                 onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                className="btn-secondary flex items-center gap-2 group whitespace-nowrap"
+                className="btn-secondary flex items-center gap-2 group whitespace-nowrap py-1.5 h-11"
               >
                 <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                <span className="hidden sm:inline">Export Report</span>
+                <span className="hidden lg:inline">Export Report</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isExportDropdownOpen && "rotate-180")} />
               </button>
 
@@ -5714,13 +5717,16 @@ Guidelines:
               </AnimatePresence>
             </div>
 
-            <div className="h-6 w-[1px] bg-slate-800 mx-1" />
+            <div className="h-6 w-[1px] bg-slate-800 mx-1 shrink-0" />
 
-            <div className="flex items-center gap-3 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-slate-800/80">
-              <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs shadow-inner uppercase">
+            <div className="flex items-center gap-2 sm:gap-3 bg-slate-900/60 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-800/80 shrink-0 h-11">
+              <div 
+                className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs shadow-inner uppercase shrink-0"
+                title={`${currentUser} (${currentLoggedInUserObj?.role || (isAdmin ? "Administrator" : "User")})`}
+              >
                 {currentUser?.substring(0, 2)}
               </div>
-              <div className="hidden lg:block text-left">
+              <div className="hidden xl:block text-left">
                 <p className="text-[10px] text-white font-black uppercase tracking-tight leading-none">{currentLoggedInUserObj?.name || currentUser}</p>
                 <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wide mt-0.5 leading-none">{currentLoggedInUserObj?.role || (isAdmin ? "Administrator" : "User")}</p>
                 {lastLoginTime ? (
@@ -5735,11 +5741,11 @@ Guidelines:
               </div>
               <button 
                 onClick={handleLogout}
-                className="ml-1 p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/35 text-red-400 hover:text-red-300 rounded-lg transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider"
+                className="ml-1 p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/35 text-red-400 hover:text-red-300 rounded-lg transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider h-8 shrink-0"
                 title="Log Out secure session"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                <span className="hidden sm:inline">Log Out</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                <span className="hidden lg:inline">Log Out</span>
               </button>
             </div>
 
@@ -5747,11 +5753,11 @@ Guidelines:
             <div className="relative shrink-0">
               <button 
                 onClick={() => setShowThemeDropdown(!showThemeDropdown)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all group h-11"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all group h-11 shrink-0"
                 title="Customize Application Theme"
               >
-                <Palette className="w-3.5 h-3.5 text-violet-400 group-hover:rotate-12 transition-transform" />
-                <span className="text-[10px] uppercase tracking-wider font-black hidden sm:inline">Theme</span>
+                <Palette className="w-3.5 h-3.5 text-violet-400 group-hover:rotate-12 transition-transform shrink-0" />
+                <span className="text-[10px] uppercase tracking-wider font-black hidden lg:inline">Theme</span>
               </button>
 
               <AnimatePresence>
@@ -6591,7 +6597,7 @@ Guidelines:
                             title="Toggle inline operational trend charts and analytics reports"
                           >
                             <BarChart3 className={cn("w-3.5 h-3.5", isInlineAnalyticsOpen && "animate-pulse text-blue-400")} />
-                            <span>{isInlineAnalyticsOpen ? "Hide Hub Trends" : "Show Hub Trends"}</span>
+                            <span>{isInlineAnalyticsOpen ? "Hide Trend Analysis" : "Trend Analysis"}</span>
                           </button>
 
                           <button 
@@ -7418,7 +7424,7 @@ Guidelines:
                               key={task.id} 
                               className={cn(
                                 "hover:bg-slate-800/20 transition-colors group relative",
-                                isNearBreach ? "bg-red-950/10 hover:bg-red-900/10 border-l border-red-500/80" : ""
+                                isNearBreach ? "" : ""
                               )}
                             >
                               {workbookColumns.map(col => {
@@ -7438,7 +7444,7 @@ Guidelines:
                                     return (
                                       <td key="ticketId" className="px-4 py-4 font-mono font-medium text-slate-300">
                                         <div className="flex items-center gap-2">
-                                          {isNearBreach && (
+                                          {false && (
                                             <span className="relative flex h-2 w-2" title="Breach Warning: Less than 20% SLA remaining!">
                                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                               <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -7451,7 +7457,7 @@ Guidelines:
                                           >
                                             {task.ticketId}
                                           </button>
-                                          {attachmentsCount > 0 && (
+                                          {false && attachmentsCount > 0 && (
                                             <button
                                               onClick={() => setAuditTask(task)}
                                               className="p-1 rounded bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 hover:border-rose-450 flex items-center gap-1 text-[9px] font-black transition-all cursor-pointer shadow-sm animate-pulse"
