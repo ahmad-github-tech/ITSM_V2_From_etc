@@ -1658,6 +1658,7 @@ Signatures Registered:
   const [assetFilterProject, setAssetFilterProject] = useState('All');
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isInlineDashboardOpen, setIsInlineDashboardOpen] = useState(true);
+  const [metricsDrilldownStatus, setMetricsDrilldownStatus] = useState<'Hold' | 'In-Progress' | null>(null);
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
   const [isCategoryConfigModalOpen, setIsCategoryConfigModalOpen] = useState(false);
   const [activeConfigCatId, setActiveConfigCatId] = useState<string>('laptop');
@@ -6563,9 +6564,23 @@ Guidelines:
                                     <span className="text-[9px] text-slate-500 font-bold lowercase select-none">active</span>
                                   </div>
                                 </div>
-                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono text-slate-500">
-                                  <span>Hold: {projectFilteredTasks.filter(t => t.status === 'Hold').length}</span>
-                                  <span>In-Prog: {projectFilteredTasks.filter(t => t.status === 'In-Progress').length}</span>
+                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
+                                  <button
+                                    onClick={() => setMetricsDrilldownStatus('Hold')}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-all font-bold cursor-pointer hover:scale-105 active:scale-95"
+                                    title="Click to view and edit active Hold tickets"
+                                  >
+                                    <span className="text-[9px] uppercase font-bold tracking-tight">Hold:</span>
+                                    <span className="font-extrabold text-[10px] text-white">{projectFilteredTasks.filter(t => t.status === 'Hold').length}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setMetricsDrilldownStatus('In-Progress')}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 transition-all font-bold cursor-pointer hover:scale-105 active:scale-95"
+                                    title="Click to view and edit active In-Progress tickets"
+                                  >
+                                    <span className="text-[9px] uppercase font-bold tracking-tight">In-Prog:</span>
+                                    <span className="font-extrabold text-[10px] text-white">{projectFilteredTasks.filter(t => t.status === 'In-Progress').length}</span>
+                                  </button>
                                 </div>
                               </div>
 
@@ -10719,6 +10734,146 @@ Guidelines:
                       </button>
                     </div>
                   </form>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
+
+          {/* Backlog Tickets Drilldown Modal */}
+          <AnimatePresence>
+            {metricsDrilldownStatus && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md font-sans">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-left animate-fade-in"
+                >
+                  <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2.5 rounded-xl shrink-0",
+                        metricsDrilldownStatus === 'Hold' ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"
+                      )}>
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                          <span>{metricsDrilldownStatus} Incident Telemetry</span>
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-black",
+                            metricsDrilldownStatus === 'Hold' ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"
+                          )}>
+                            {projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus).length} Total
+                          </span>
+                        </h3>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                          Operational window review and direct workflow ticket routing
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setMetricsDrilldownStatus(null)}
+                      className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                        <AlertCircle className="w-10 h-10 mb-3 text-slate-700" />
+                        <p className="text-xs uppercase font-black tracking-wider w-full">No active records</p>
+                        <p className="text-[10px] uppercase font-bold text-slate-600 mt-1">There are no operational backlog tickets with status "{metricsDrilldownStatus}"</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {projectFilteredTasks
+                          .filter(t => t.status === metricsDrilldownStatus)
+                          .map((task) => {
+                            const priorityColor = PRIORITY_COLORS[task.priority] || '#94a3b8';
+                            return (
+                              <div
+                                key={task.ticketId}
+                                className="p-4 bg-slate-950/50 hover:bg-slate-950/85 border border-slate-850 hover:border-slate-800 rounded-2xl transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 select-text group"
+                              >
+                                <div className="space-y-2 flex-1 font-sans">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-mono text-xs font-black text-white bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
+                                      {task.ticketId}
+                                    </span>
+                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-850 text-slate-300 border border-slate-800">
+                                      {task.projectId}
+                                    </span>
+                                    <span 
+                                      className="text-[9px] font-black uppercase px-2 py-0.5 rounded border"
+                                      style={{ color: priorityColor, borderColor: `${priorityColor}33`, backgroundColor: `${priorityColor}0d` }}
+                                    >
+                                      {task.priority}
+                                    </span>
+                                    <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-850">
+                                      {task.supportLevel}
+                                    </span>
+                                  </div>
+                                  
+                                  <p className="text-xs text-slate-350 group-hover:text-white transition-colors leading-relaxed font-sans line-clamp-2">
+                                    {task.description}
+                                  </p>
+
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[9px] font-mono text-slate-500 font-extrabold uppercase pt-1">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="w-3.5 h-3.5 text-slate-500" />
+                                      Assigned: <strong className="text-slate-400 font-black">{task.assignedTo || 'Unassigned'}</strong>
+                                    </span>
+                                    <span>•</span>
+                                    <span>Generated: {format(parseISO(task.generationDate), 'MMM dd, HH:mm')}</span>
+                                    {task.holdReason && task.status === 'Hold' && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-amber-500/90 font-sans italic lowercase">Reason: {task.holdReason}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    setMetricsDrilldownStatus(null);
+                                    setActiveTab('workbook');
+                                    setIsSidebarOpen(true);
+                                    setEditingTask(task);
+                                    setFormData({
+                                      ticketId: task.ticketId,
+                                      projectId: task.projectId,
+                                      supportLevel: task.supportLevel,
+                                      priority: task.priority,
+                                      status: task.status,
+                                      generationDate: format(parseISO(task.generationDate), "yyyy-MM-dd'T'HH:mm"),
+                                      responseDate: task.responseDate ? format(parseISO(task.responseDate), "yyyy-MM-dd'T'HH:mm") : '',
+                                      closureDate: task.closureDate ? format(parseISO(task.closureDate), "yyyy-MM-dd'T'HH:mm") : '',
+                                      userIntimated: task.userIntimated,
+                                      description: task.description,
+                                      solution: task.solution,
+                                      remarks: task.remarks,
+                                      assignedTo: task.assignedTo,
+                                      resolutionDetails: task.resolutionDetails || '',
+                                      holdReason: task.holdReason || '',
+                                      category: task.category || '',
+                                      subcategory: task.subcategory || '',
+                                    });
+                                  }}
+                                  className="self-start md:self-auto shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 hover:border-transparent rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 shadow-md transform group-hover:translate-x-0.5 cursor-pointer"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>Route to Editor</span>
+                                </button>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               </div>
             )}
