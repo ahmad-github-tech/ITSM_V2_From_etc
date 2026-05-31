@@ -18,7 +18,7 @@ import {
   Search, Download, Trash2, LayoutDashboard, ListTodo, Filter, ChevronRight, ChevronLeft, ArrowUpDown, Settings, Save,
   Pencil, RotateCcw, AlertTriangle, Info, ShieldAlert, UserPlus, Users, Key,
   History, Eye, Scale, Terminal, Calendar, ChevronDown, FileSpreadsheet, FileText, X, Palette,
-  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail, Laptop, Server
+  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail, Laptop, Server, BarChart3
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { format, subDays, differenceInMinutes, parseISO as dateFnsParseISO, startOfDay, endOfDay, addDays, subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
@@ -1658,7 +1658,9 @@ Signatures Registered:
   const [assetFilterProject, setAssetFilterProject] = useState('All');
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isInlineDashboardOpen, setIsInlineDashboardOpen] = useState(true);
-  const [metricsDrilldownStatus, setMetricsDrilldownStatus] = useState<'Hold' | 'In-Progress' | null>(null);
+  const [isInlineAnalyticsOpen, setIsInlineAnalyticsOpen] = useState(false);
+  const [metricsDrilldownStatus, setMetricsDrilldownStatus] = useState<string | null>(null);
+  const [drilldownComplianceFilter, setDrilldownComplianceFilter] = useState<'all' | 'compliant' | 'breached'>('all');
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
   const [isCategoryConfigModalOpen, setIsCategoryConfigModalOpen] = useState(false);
   const [activeConfigCatId, setActiveConfigCatId] = useState<string>('laptop');
@@ -2021,7 +2023,7 @@ Signatures Registered:
     if (!isManagerOrAdmin) {
       // 1. Force adjust active tab if they shouldn't access Admin/Manager-only pages
       if (activeTab === 'settings' || activeTab === 'user-onboard') {
-        setActiveTab('analytics');
+        setActiveTab('workbook');
       }
 
       // 2. Project auto-adjustment
@@ -3991,15 +3993,20 @@ Guidelines:
     if (formatType === 'excel') {
       exportToExcel(sheets, `${filenamePrefix}.xlsx`);
     } else {
-      // Ensure we are on analytics tab to capture charts
+      // Ensure we are in workbook and inline analytics is open to capture charts
       const originalTab = activeTab;
-      if (activeTab !== 'analytics') {
-        setActiveTab('analytics');
-        // Wait for tab to switch and charts to mount/animate
+      const originalAnalyticsOpen = isInlineAnalyticsOpen;
+      
+      if (activeTab !== 'workbook') {
+        setActiveTab('workbook');
+      }
+      if (!isInlineAnalyticsOpen) {
+        setIsInlineAnalyticsOpen(true);
+        // Wait for workbook to switch and charts to mount/animate
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
 
-      // Capture charts if in analytics tab
+      // Capture charts
       let chartImages: string[] = [];
       window.scrollTo(0, 0);
       const chartElements = document.querySelectorAll('.report-chart');
@@ -4027,9 +4034,12 @@ Guidelines:
         setLoading(false);
       }
 
-      // Revert to original tab if needed
-      if (originalTab !== 'analytics') {
+      // Revert to original layout state if needed
+      if (activeTab !== originalTab) {
         setActiveTab(originalTab);
+      }
+      if (isInlineAnalyticsOpen !== originalAnalyticsOpen) {
+        setIsInlineAnalyticsOpen(originalAnalyticsOpen);
       }
 
       let dateRangeStr = '';
@@ -5537,6 +5547,39 @@ Guidelines:
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
+
+              <div className="w-[1px] h-4 bg-slate-800/80 mx-1" />
+
+              <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-1">Range:</span>
+              <select 
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
+                value={trendPeriod}
+                onChange={e => setTrendPeriod(e.target.value as any)}
+              >
+                <option value="daily">Daily View</option>
+                <option value="weekly">Weekly View</option>
+                <option value="monthly">Monthly View</option>
+                <option value="quarterly">Quarterly View</option>
+                <option value="custom">Custom Range</option>
+              </select>
+
+              {trendPeriod === 'custom' && (
+                <div className="flex items-center gap-1 pl-1">
+                  <input 
+                    type="date" 
+                    className="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-white outline-none focus:ring-1 focus:ring-blue-500/50 font-mono h-[24px]"
+                    value={customStartDate}
+                    onChange={e => setCustomStartDate(e.target.value)}
+                  />
+                  <span className="text-[10px] text-slate-600 font-bold">-</span>
+                  <input 
+                    type="date" 
+                    className="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-white outline-none focus:ring-1 focus:ring-blue-500/50 font-mono h-[24px]"
+                    value={customEndDate}
+                    onChange={e => setCustomEndDate(e.target.value)}
+                  />
+                </div>
+              )}
           </div>
 
           {/* Right portion: Views & Administration tabs */}
@@ -5559,17 +5602,6 @@ Guidelines:
             </div>
 
             <div className="flex items-center gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800">
-              <button 
-                onClick={() => setActiveTab('analytics')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                  activeTab === 'analytics' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
-                )}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="hidden md:inline">Analytics</span>
-              </button>
-
               {isManagerOrAdmin && (
                 <button 
                   onClick={() => setActiveTab('settings')}
@@ -5756,7 +5788,7 @@ Guidelines:
 
 
           <AnimatePresence mode="wait">
-            {activeTab === 'analytics' ? (
+            {activeTab === 'analytics_deprecated_duplicate' ? (
               <motion.div 
                 key="analytics"
                 initial={{ opacity: 0, y: 20 }}
@@ -6517,19 +6549,35 @@ Guidelines:
                           <h3 className="text-sm font-black text-white uppercase tracking-widest">My Workbook</h3>
                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Real-time incident ledger and resolution tracking</p>
                         </div>
-                        <button 
-                          onClick={() => setIsInlineDashboardOpen(!isInlineDashboardOpen)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
-                            isInlineDashboardOpen 
-                              ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/35 hover:bg-indigo-600/25" 
-                              : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                          )}
-                          title="Toggle inline operational hub analytics dashboard"
-                        >
-                          <Activity className={cn("w-3.5 h-3.5", isInlineDashboardOpen && "animate-pulse text-indigo-400")} />
-                          <span>{isInlineDashboardOpen ? "Hide Hub Stats" : "Show Hub Stats"}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setIsInlineAnalyticsOpen(!isInlineAnalyticsOpen)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
+                              isInlineAnalyticsOpen 
+                                ? "bg-blue-600/15 text-blue-400 border-blue-500/35 hover:bg-blue-600/25" 
+                                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                            )}
+                            title="Toggle inline operational trend charts and analytics reports"
+                          >
+                            <BarChart3 className={cn("w-3.5 h-3.5", isInlineAnalyticsOpen && "animate-pulse text-blue-400")} />
+                            <span>{isInlineAnalyticsOpen ? "Hide Hub Trends" : "Show Hub Trends"}</span>
+                          </button>
+
+                          <button 
+                            onClick={() => setIsInlineDashboardOpen(!isInlineDashboardOpen)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
+                              isInlineDashboardOpen 
+                                ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/35 hover:bg-indigo-600/25" 
+                                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                            )}
+                            title="Toggle inline operational hub analytics dashboard"
+                          >
+                            <Activity className={cn("w-3.5 h-3.5", isInlineDashboardOpen && "animate-pulse text-indigo-400")} />
+                            <span>{isInlineDashboardOpen ? "Hide Hub Stats" : "Show Hub Stats"}</span>
+                          </button>
+                        </div>
                       </div>
 
                       <AnimatePresence mode="wait">
@@ -6555,13 +6603,17 @@ Guidelines:
                             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
                               {/* 1. Backlog Level Card */}
                               <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Backlog Tickets</span>
+                                <div 
+                                  onClick={() => setMetricsDrilldownStatus('Backlog')}
+                                  className="cursor-pointer group select-none"
+                                  title="Click to view all active open backlog tickets"
+                                >
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block group-hover:text-indigo-400 transition-colors">Backlog Tickets</span>
                                   <div className="flex items-baseline gap-2 mt-1.5">
-                                    <span className="text-xl font-black font-sans text-violet-400">
+                                    <span className="text-xl font-black font-sans text-violet-400 transition-transform group-hover:scale-105 block">
                                       {charts.slaMetrics.activeOpenCount}
                                     </span>
-                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">active</span>
+                                    <span className="text-[9px] text-slate-550 font-bold lowercase">active</span>
                                   </div>
                                 </div>
                                 <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
@@ -6585,74 +6637,117 @@ Guidelines:
                               </div>
 
                               {/* 2. Response Compliance Card */}
-                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Response SLA</span>
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between cursor-pointer">
+                                <div 
+                                  onClick={() => setMetricsDrilldownStatus('ResponseSLA')}
+                                  className="group select-none"
+                                  title="Click to view Response SLA details and compliant/breached tickets"
+                                >
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block group-hover:text-emerald-400 transition-colors">Response SLA</span>
                                   <div className="flex items-baseline gap-2 mt-1.5">
                                     <span className={cn(
-                                      "text-xl font-black font-sans",
+                                      "text-xl font-black font-sans transition-transform group-hover:scale-105 block",
                                       charts.slaMetrics.responseCompliance >= 90 ? "text-emerald-400" :
                                       charts.slaMetrics.responseCompliance >= 75 ? "text-amber-400" : "text-rose-400"
                                     )}>
                                       {charts.slaMetrics.responseCompliance}%
                                     </span>
-                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">compliance</span>
+                                    <span className="text-[9px] text-slate-550 font-bold lowercase">compliance</span>
                                   </div>
                                 </div>
-                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
-                                  <span className="text-slate-500">Avg MTTA:</span>
-                                  <span className="text-indigo-400 font-black">{formatDuration(charts.slaMetrics.mtta * 60000) || '0m'}</span>
+                                <div 
+                                  onClick={() => setMetricsDrilldownStatus('MTTA')}
+                                  className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono cursor-pointer hover:bg-slate-900/60 p-1.5 rounded transition-colors"
+                                  title="Click to view Average Response Time (MTTA) operational list"
+                                >
+                                  <span className="text-slate-500 font-semibold">Avg MTTA:</span>
+                                  <span className="text-indigo-400 font-black hover:underline">{formatDuration(charts.slaMetrics.mtta * 60000) || '0m'}</span>
                                 </div>
                               </div>
 
                               {/* 3. Resolution Compliance Card */}
-                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Resolution SLA</span>
-                                  <div className="flex items-baseline gap-2 mt-1.5">
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between cursor-pointer">
+                                <div 
+                                  onClick={() => setMetricsDrilldownStatus('ResolutionSLA')}
+                                  className="group select-none"
+                                  title="Click to view Resolution SLA details and compliant/breached tickets"
+                                >
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block group-hover:text-emerald-400 transition-colors">Resolution SLA</span>
+                                  <div className="flex items-baseline gap-2 mt-1.5 flex-wrap">
                                     <span className={cn(
-                                      "text-xl font-black font-sans",
+                                      "text-xl font-black font-sans transition-transform group-hover:scale-105 block",
                                       charts.slaMetrics.resolutionCompliance >= 90 ? "text-emerald-400" :
                                       charts.slaMetrics.resolutionCompliance >= 75 ? "text-amber-400" : "text-rose-400"
                                     )}>
                                       {charts.slaMetrics.resolutionCompliance}%
                                     </span>
-                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">compliance</span>
+                                    <span className="text-[9px] text-slate-550 font-bold lowercase">compliance</span>
                                   </div>
                                 </div>
-                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
-                                  <span className="text-slate-500">Avg MTTR:</span>
-                                  <span className="text-sky-400 font-black">{formatDuration(charts.slaMetrics.mttr * 60000) || '0m'}</span>
+                                <div 
+                                  onClick={() => setMetricsDrilldownStatus('MTTR')}
+                                  className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono cursor-pointer hover:bg-slate-900/60 p-1.5 rounded transition-colors"
+                                  title="Click to view Average Resolution Time (MTTR) operational list"
+                                >
+                                  <span className="text-slate-500 font-semibold">Avg MTTR:</span>
+                                  <span className="text-sky-400 font-black hover:underline">{formatDuration(charts.slaMetrics.mttr * 60000) || '0m'}</span>
                                 </div>
                               </div>
 
                               {/* 4. Threat / Breach Risk Card */}
                               <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
-                                <div>
-                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Breach Threat Risk</span>
+                                <div
+                                  onClick={() => {
+                                    if (charts.slaMetrics.riskCritical > 0) setMetricsDrilldownStatus('RiskCritical');
+                                    else if (charts.slaMetrics.riskHigh > 0) setMetricsDrilldownStatus('RiskHigh');
+                                    else if (charts.slaMetrics.riskMedium > 0) setMetricsDrilldownStatus('RiskMedium');
+                                    else setMetricsDrilldownStatus('RiskLow');
+                                  }}
+                                  className="cursor-pointer group select-none"
+                                  title="Click to view active tickets at risk of breaching SLA deadlines"
+                                >
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block group-hover:text-amber-400 transition-colors">Breach Threat Risk</span>
                                   <div className="flex items-center gap-2 mt-1.5">
-                                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-current", charts.slaMetrics.breachRiskColor)}>
+                                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-current transition-transform group-hover:scale-105", charts.slaMetrics.breachRiskColor)}>
                                       {charts.slaMetrics.breachRiskStatus}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="mt-2.5">
-                                  <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden flex">
+                                  <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden flex cursor-pointer" onClick={() => setMetricsDrilldownStatus('RiskCritical')}>
                                     {charts.slaMetrics.activeOpenCount > 0 ? (
                                       <>
-                                        <div style={{ width: `${(charts.slaMetrics.riskCritical / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-rose-500" title="Breached" />
-                                        <div style={{ width: `${(charts.slaMetrics.riskHigh / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-orange-500" title="High Risk" />
-                                        <div style={{ width: `${(charts.slaMetrics.riskMedium / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-amber-500" title="Medium Risk" />
-                                        <div style={{ width: `${(charts.slaMetrics.riskLow / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-emerald-500" title="Stable / Low" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskCritical / charts.slaMetrics.activeOpenCount) * 100}%` }} className="h-full bg-rose-500 hover:opacity-80 transition-opacity" title="Critical Breaches" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskHigh / charts.slaMetrics.activeOpenCount) * 100}%` }} className="h-full bg-orange-500 hover:opacity-80 transition-opacity" title="High Risk" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskMedium / charts.slaMetrics.activeOpenCount) * 100}%` }} className="h-full bg-amber-500 hover:opacity-80 transition-opacity" title="Medium Risk" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskLow / charts.slaMetrics.activeOpenCount) * 100}%` }} className="h-full bg-emerald-500 hover:opacity-80 transition-opacity" title="Complex / Low" />
                                       </>
                                     ) : (
                                       <div className="w-full h-full bg-slate-800" />
                                     )}
                                   </div>
-                                  <div className="flex justify-between text-[7.5px] font-mono text-slate-550 font-black mt-1 uppercase">
-                                    <span title="Critical / Breached" className={charts.slaMetrics.riskCritical > 0 ? "text-rose-500 font-black" : ""}>Cri: {charts.slaMetrics.riskCritical}</span>
-                                    <span title="High Risk" className={charts.slaMetrics.riskHigh > 0 ? "text-orange-500 font-black" : ""}>Hgh: {charts.slaMetrics.riskHigh}</span>
-                                    <span title="Medium Risk" className={charts.slaMetrics.riskMedium > 0 ? "text-amber-500 font-black" : ""}>Med: {charts.slaMetrics.riskMedium}</span>
+                                  <div className="flex justify-between text-[7.5px] font-mono text-slate-500 mt-1 uppercase font-black">
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('RiskCritical')}
+                                      className={cn("hover:text-rose-400 cursor-pointer transition-colors leading-none font-bold", charts.slaMetrics.riskCritical > 0 ? "text-rose-500 font-extrabold" : "text-slate-550")}
+                                      title="Click to view breached resolution SLA tickets"
+                                    >
+                                      Cri: {charts.slaMetrics.riskCritical}
+                                    </button>
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('RiskHigh')}
+                                      className={cn("hover:text-orange-400 cursor-pointer transition-colors leading-none font-bold", charts.slaMetrics.riskHigh > 0 ? "text-orange-500 font-extrabold" : "text-slate-550")}
+                                      title="Click to view high breach threat risk tickets (>80% limit consumed)"
+                                    >
+                                      Hgh: {charts.slaMetrics.riskHigh}
+                                    </button>
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('RiskMedium')}
+                                      className={cn("hover:text-amber-400 cursor-pointer transition-colors leading-none font-bold", charts.slaMetrics.riskMedium > 0 ? "text-amber-500 font-extrabold" : "text-slate-550")}
+                                      title="Click to view medium breach threat risk tickets (50%-80% limit consumed)"
+                                    >
+                                      Med: {charts.slaMetrics.riskMedium}
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -6661,33 +6756,333 @@ Guidelines:
                               <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between col-span-2 lg:col-span-1">
                                 <div>
                                   <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-550 block select-none">Load Characteristics</span>
-                                  <div className="mt-1.5 grid grid-cols-4 gap-1.5 select-none">
-                                    <div className="bg-rose-500/5 p-1 rounded border border-rose-500/10 text-center">
+                                  <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('P1')}
+                                      className="bg-rose-500/5 hover:bg-rose-500/20 active:scale-95 cursor-pointer p-1 rounded border border-rose-500/10 hover:border-rose-500/40 text-center transition-all duration-200"
+                                      title="Click to drill down into P1 Critical metrics"
+                                    >
                                       <p className="text-[8px] font-black text-rose-400 font-mono">P1</p>
                                       <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P1').length}</p>
-                                    </div>
-                                    <div className="bg-orange-500/5 p-1 rounded border border-orange-500/10 text-center">
+                                    </button>
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('P2')}
+                                      className="bg-orange-500/5 hover:bg-orange-500/20 active:scale-95 cursor-pointer p-1 rounded border border-orange-500/10 hover:border-orange-500/40 text-center transition-all duration-200"
+                                      title="Click to drill down into P2 High metrics"
+                                    >
                                       <p className="text-[8px] font-black text-orange-400 font-mono">P2</p>
                                       <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P2').length}</p>
-                                    </div>
-                                    <div className="bg-amber-500/5 p-1 rounded border border-amber-500/10 text-center">
+                                    </button>
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('P3')}
+                                      className="bg-amber-500/5 hover:bg-amber-500/20 active:scale-95 cursor-pointer p-1 rounded border border-amber-500/10 hover:border-amber-500/40 text-center transition-all duration-200"
+                                      title="Click to drill down into P3 Medium metrics"
+                                    >
                                       <p className="text-[8px] font-black text-amber-400 font-mono">P3</p>
                                       <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P3').length}</p>
-                                    </div>
-                                    <div className="bg-emerald-500/5 p-1 rounded border border-emerald-500/10 text-center">
+                                    </button>
+                                    <button 
+                                      onClick={() => setMetricsDrilldownStatus('P4')}
+                                      className="bg-emerald-500/5 hover:bg-emerald-500/20 active:scale-95 cursor-pointer p-1 rounded border border-emerald-500/10 hover:border-emerald-500/40 text-center transition-all duration-200"
+                                      title="Click to drill down into P4 Standard metrics"
+                                    >
                                       <p className="text-[8px] font-black text-emerald-400 font-mono">P4</p>
                                       <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P4').length}</p>
-                                    </div>
+                                    </button>
                                   </div>
                                 </div>
-                                <div className="text-[8.5px] font-mono text-slate-500 font-extrabold mt-1 uppercase text-right leading-none select-none">
-                                  {projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved').length} Resolved
-                                </div>
+                                <button 
+                                  onClick={() => setMetricsDrilldownStatus('Resolved')}
+                                  className="w-full text-right block mt-2 pt-1 border-t border-slate-900/40 cursor-pointer text-[8.5px] font-mono text-slate-500 hover:text-indigo-400 font-extrabold uppercase transition-colors"
+                                  title="Click to view all closed and resolved tickets list"
+                                >
+                                  {projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved').length} Resolved &rarr;
+                                </button>
                               </div>
                             </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
+
+                      <AnimatePresence mode="wait">
+                        {isInlineAnalyticsOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0, y: -10 }}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            exit={{ opacity: 0, height: 0, y: -10 }}
+                            className="bg-slate-900/40 p-5 rounded-2xl border border-slate-800/80 mb-3 space-y-4 overflow-hidden shadow-lg shadow-black/15 select-text"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                                <span className="text-[10px] uppercase font-black text-slate-300 tracking-widest">
+                                  {selectedProject === 'All' ? 'Consolidated Operational Analytics' : `${selectedProject} Analytics Hub`}
+                                </span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850">
+                                <button 
+                                  onClick={() => setAnalyticsSubView('system')}
+                                  className={cn(
+                                    "px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer select-none",
+                                    analyticsSubView === 'system' 
+                                      ? "bg-slate-800 text-white border border-slate-700/85" 
+                                      : "text-slate-500 hover:text-slate-300"
+                                  )}
+                                >
+                                  System SLA &amp; Trends
+                                </button>
+                                <button 
+                                  onClick={() => setAnalyticsSubView('productivity')}
+                                  className={cn(
+                                    "px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer select-none",
+                                    analyticsSubView === 'productivity' 
+                                      ? "bg-slate-800 text-white border border-slate-700/85" 
+                                      : "text-slate-500 hover:text-slate-300"
+                                  )}
+                                >
+                                  Resource Productivity
+                                </button>
+                              </div>
+                            </div>
+
+                            {analyticsSubView === 'system' ? (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="chart-container report-chart p-5 h-[320px] bg-slate-950/40 border border-slate-850/80 rounded-xl flex flex-col">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">Incident Volume &amp; Resolution Trends</h3>
+                                    </div>
+                                    <div className="flex-1 w-full h-[240px]">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={charts.trendData}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+                                          <XAxis dataKey="name" stroke={chartColors.text} fontSize={9} tickLine={false} axisLine={false} />
+                                          <YAxis stroke={chartColors.text} fontSize={9} tickLine={false} axisLine={false} />
+                                          <Tooltip 
+                                            contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
+                                            itemStyle={{ color: chartColors.tooltipText }}
+                                          />
+                                          <Line type="monotone" dataKey="closures" name="Closed Tickets" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#3b82f6', stroke: chartColors.tooltipBg, strokeWidth: 1.5 }} />
+                                        </LineChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                  </div>
+
+                                  <div className="chart-container report-chart p-5 h-[320px] flex flex-col bg-slate-950/40 border border-slate-850/80 rounded-xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">Priority Volume Mix</h3>
+                                    </div>
+                                    <div className="flex flex-grow items-center justify-around h-full">
+                                      <div className="w-28 h-28 relative">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <PieChart>
+                                            <Pie
+                                              data={charts.priorityData}
+                                              innerRadius={30}
+                                              outerRadius={45}
+                                              paddingAngle={3}
+                                              dataKey="value"
+                                              stroke="none"
+                                            >
+                                              {charts.priorityData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                              ))}
+                                            </Pie>
+                                            <Tooltip />
+                                          </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <div className="text-[8px] font-bold text-slate-500 uppercase">Share</div>
+                                        </div>
+                                      </div>
+                                      <div className="space-y-1 min-w-[95px]">
+                                        {charts.priorityData.map(p => (
+                                          <div key={p.name} className="flex items-center gap-2 text-[10px] font-mono">
+                                            <div className="w-1.5 h-1.5 rounded" style={{ backgroundColor: p.color }}></div> 
+                                            <span className="text-slate-400">{p.name}:</span>
+                                            <span className="text-slate-200">{p.value}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="chart-container report-chart p-4 bg-slate-950/40 border border-slate-850/80 rounded-xl h-[280px] flex flex-col justify-between">
+                                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Workload Tier Distribution</h3>
+                                    <div className="space-y-2 flex-grow overflow-y-auto">
+                                      {charts.levelData.map(level => {
+                                        const percentage = (level.count / (level.total || 1)) * 100;
+                                        return (
+                                          <div key={level.name} className="flex items-center gap-2">
+                                            <span className="text-[10px] w-4 font-bold text-slate-400">{level.name}</span>
+                                            <div className="flex-grow h-4 bg-slate-800/40 rounded overflow-hidden relative">
+                                              <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${Math.max(percentage, 2)}%` }}
+                                                className="h-full bg-slate-500/80"
+                                              />
+                                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[8px] font-extrabold text-white">
+                                                {level.count} Tickets
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  <div className="chart-container report-chart p-4 bg-slate-950/40 border border-slate-850/80 rounded-xl h-[280px] flex flex-col justify-between">
+                                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Consumed Hours by Tier</h3>
+                                    <div className="h-[140px] w-full">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={charts.consumptionData} layout="vertical" margin={{ top: 0, right: 15, left: -25, bottom: 0 }}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
+                                          <XAxis type="number" stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                          <YAxis type="category" dataKey="name" stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                          <Tooltip 
+                                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                            contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
+                                            itemStyle={{ color: chartColors.tooltipText }}
+                                          />
+                                          <Bar dataKey="hours" radius={[0, 2, 2, 0]} fill="#818cf8" />
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[70px]">
+                                      {charts.consumptionData.map((tier, idx) => (
+                                        <div key={idx} className="flex justify-between items-center px-1.5 py-0.5 bg-slate-900/60 rounded border border-slate-800/40 text-[9px]">
+                                          <span className="font-bold text-slate-400">{tier.name}</span>
+                                          <span className="text-slate-500"><span className="text-white font-bold">{tier.hours}h</span> total</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div className="chart-container report-chart p-4 bg-slate-950/40 border border-slate-850/80 rounded-xl h-[280px] flex flex-col justify-between">
+                                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Aging Profile</h3>
+                                    <div className="h-[140px] w-full">
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={charts.agingData} margin={{ top: 5, right: 5, left: -30, bottom: 0 }}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+                                          <XAxis dataKey="name" stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                          <YAxis stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                          <Tooltip 
+                                            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                            contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
+                                            itemStyle={{ color: chartColors.tooltipText }}
+                                          />
+                                          <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                                            {charts.agingData.map((entry, index) => (
+                                              <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                          </Bar>
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 justify-center mt-1">
+                                      {charts.agingData.map((bucket, idx) => (
+                                        <div key={idx} className="flex items-center gap-1 bg-slate-900/40 px-1 py-0.5 rounded text-[8px]">
+                                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: bucket.color }} />
+                                          <span className="text-slate-400">{bucket.name}:</span>
+                                          <span className="text-white font-bold">{bucket.count}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+                                  <div className="bg-slate-950/65 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
+                                    <div className="text-left">
+                                      <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Managed Personnel</p>
+                                      <h4 className="text-base font-black text-white font-mono mt-0.5">{visibleProductivityData.length} Resources</h4>
+                                    </div>
+                                    <Users className="w-4 h-4 text-indigo-400 shrink-0" />
+                                  </div>
+                                  <div className="bg-slate-950/65 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
+                                    <div className="text-left">
+                                      <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Time Invested</p>
+                                      <h4 className="text-base font-black text-white font-mono mt-0.5">{visibleProductivityData.reduce((sum, r) => sum + r.totalHours, 0).toFixed(1)}h</h4>
+                                    </div>
+                                    <Clock className="w-4 h-4 text-violet-400 shrink-0" />
+                                  </div>
+                                  <div className="bg-slate-950/65 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
+                                    <div className="text-left">
+                                      <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Total Resolutions</p>
+                                      <h4 className="text-base font-black text-white font-mono mt-0.5">{visibleProductivityData.reduce((sum, r) => sum + r.resolvedCount, 0)} Tickets</h4>
+                                    </div>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                  </div>
+                                  <div className="bg-slate-950/65 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
+                                    <div className="text-left">
+                                      <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Avg Duration</p>
+                                      <h4 className="text-base font-black text-white font-mono mt-0.5">
+                                        {(() => {
+                                          const resolvedSum = visibleProductivityData.reduce((sum, r) => sum + r.resolvedCount, 0);
+                                          const hoursSum = visibleProductivityData.reduce((sum, r) => sum + r.totalHours, 0);
+                                          return resolvedSum > 0 ? (hoursSum / resolvedSum).toFixed(1) : '0';
+                                        })()}h
+                                      </h4>
+                                    </div>
+                                    <Brain className="w-4 h-4 text-amber-500 shrink-0" />
+                                  </div>
+                                </div>
+
+                                <div className="chart-container report-chart p-5 bg-slate-950/40 border border-slate-850/80 rounded-xl">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                    <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">Resource Effort &amp; Time Spent by Ticket Priority</h3>
+                                    {isManagerOrAdmin && (
+                                      <select 
+                                        value={prodSelectedRes}
+                                        onChange={(e) => setProdSelectedRes(e.target.value)}
+                                        className="bg-slate-900 border border-slate-800 text-[10px] text-white rounded px-2 py-0.5 outline-none font-bold cursor-pointer"
+                                      >
+                                        <option value="All">All Resources</option>
+                                        {visibleProductivityData.map(r => (
+                                          <option key={r.name} value={r.name}>{r.name}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                  <div className="h-[200px] w-full text-xs">
+                                    {(() => {
+                                      const chartData = prodSelectedRes === 'All' 
+                                        ? visibleProductivityData 
+                                        : visibleProductivityData.filter(r => r.name === prodSelectedRes);
+                                      if (chartData.length === 0) {
+                                        return <div className="h-full flex items-center justify-center text-slate-500 text-[10px] uppercase font-bold">No active hours logged</div>;
+                                      }
+                                      return (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+                                            <XAxis dataKey="name" stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                            <YAxis stroke={chartColors.text} fontSize={8} tickLine={false} axisLine={false} />
+                                            <Tooltip 
+                                              contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
+                                              itemStyle={{ color: chartColors.tooltipText }}
+                                            />
+                                            <Bar dataKey="p1Hours" name="P1" stackId="a" fill="#ef4444" />
+                                            <Bar dataKey="p2Hours" name="P2" stackId="a" fill="#f97316" />
+                                            <Bar dataKey="p3Hours" name="P3" stackId="a" fill="#3b82f6" />
+                                            <Bar dataKey="p4Hours" name="P4" stackId="a" fill="#22c55e" />
+                                          </BarChart>
+                                        </ResponsiveContainer>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <div className="flex items-center gap-4">
                         <div className="relative flex-1">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
@@ -10741,58 +11136,269 @@ Guidelines:
 
           {/* Backlog Tickets Drilldown Modal */}
           <AnimatePresence>
-            {metricsDrilldownStatus && (
-              <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md font-sans">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-left animate-fade-in"
-                >
-                  <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "p-2.5 rounded-xl shrink-0",
-                        metricsDrilldownStatus === 'Hold' ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"
-                      )}>
-                        <Activity className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                          <span>{metricsDrilldownStatus} Incident Telemetry</span>
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-black",
-                            metricsDrilldownStatus === 'Hold' ? "bg-amber-500/10 text-amber-400" : "bg-indigo-500/10 text-indigo-400"
-                          )}>
-                            {projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus).length} Total
-                          </span>
-                        </h3>
-                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
-                          Operational window review and direct workflow ticket routing
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setMetricsDrilldownStatus(null)}
-                      className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
+            {metricsDrilldownStatus && (() => {
+              const nowVal = new Date();
+              const nowStr = nowVal.toISOString();
 
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus).length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
-                        <AlertCircle className="w-10 h-10 mb-3 text-slate-700" />
-                        <p className="text-xs uppercase font-black tracking-wider w-full">No active records</p>
-                        <p className="text-[10px] uppercase font-bold text-slate-600 mt-1">There are no operational backlog tickets with status "{metricsDrilldownStatus}"</p>
+              // Compute period start / end inside render
+              let periodStart: Date;
+              let periodEnd = nowVal;
+              if (trendPeriod === 'daily') {
+                periodStart = startOfDay(nowVal);
+              } else if (trendPeriod === 'weekly') {
+                periodStart = subDays(nowVal, 7);
+              } else if (trendPeriod === 'monthly') {
+                periodStart = subDays(nowVal, 30);
+              } else if (trendPeriod === 'quarterly') {
+                periodStart = subDays(nowVal, 91);
+              } else {
+                const s = parseISO(customStartDate);
+                const e = parseISO(customEndDate);
+                if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+                  periodStart = new Date(0);
+                  periodEnd = new Date(0);
+                } else {
+                  periodStart = startOfDay(s);
+                  periodEnd = endOfDay(e);
+                }
+              }
+
+              const distributionTasks = projectFilteredTasks.filter(t => {
+                const genDate = parseISO(t.generationDate);
+                return genDate >= periodStart && genDate <= periodEnd;
+              });
+
+              // Select appropriate title & tasks
+              let modalTitle = 'Incident Telemetry';
+              let modalSubtitle = 'Operational window review and direct workflow ticket routing';
+              let drilldownTasksList: SupportTask[] = [];
+
+              switch (metricsDrilldownStatus) {
+                case 'Hold':
+                  modalTitle = 'SLA Hold Incidents';
+                  modalSubtitle = 'Operational review and hold suspension logs';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'Hold');
+                  break;
+                case 'In-Progress':
+                  modalTitle = 'Active In-Progress Operations';
+                  modalSubtitle = 'Command operations with live troubleshooting workflows';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'In-Progress');
+                  break;
+                case 'Backlog':
+                  modalTitle = 'Active Operations Backlog';
+                  modalSubtitle = 'Total outstanding workload yet to be resolved';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
+                  break;
+                case 'P1':
+                  modalTitle = 'P1 Critical Force Majeure';
+                  modalSubtitle = 'Extreme severity incidents with active rapid-response teams';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P1');
+                  break;
+                case 'P2':
+                  modalTitle = 'P2 High Operational Priority';
+                  modalSubtitle = 'High priority load requiring immediate shift capacity';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P2');
+                  break;
+                case 'P3':
+                  modalTitle = 'P3 Medium Service Load';
+                  modalSubtitle = 'Standard operational queries under response buffer timelines';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P3');
+                  break;
+                case 'P4':
+                  modalTitle = 'P4 Standard Incidents';
+                  modalSubtitle = 'Routine operational tasks with low-urgency thresholds';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P4');
+                  break;
+                case 'Resolved':
+                  modalTitle = 'Resolved / Closed Service Ledger';
+                  modalSubtitle = 'Ledger of successfully completed actions and SLA metrics';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved');
+                  break;
+                case 'ResponseSLA':
+                  modalTitle = 'Response SLA Diagnostics';
+                  modalSubtitle = `Analysis of response SLA deadlines for the selected ${trendPeriod} period`;
+                  drilldownTasksList = distributionTasks;
+                  break;
+                case 'ResolutionSLA':
+                  modalTitle = 'Resolution SLA Diagnostics';
+                  modalSubtitle = `Analysis of resolution SLA deadlines for the selected ${trendPeriod} period`;
+                  drilldownTasksList = distributionTasks;
+                  break;
+                case 'MTTA':
+                  modalTitle = 'Mean Time to Acknowledge (MTTA)';
+                  modalSubtitle = `Detailed timeline of response intervals for the selected ${trendPeriod} period`;
+                  drilldownTasksList = distributionTasks.filter(t => t.responseDate);
+                  break;
+                case 'MTTR':
+                  modalTitle = 'Mean Time to Resolve (MTTR)';
+                  modalSubtitle = `Detailed timeline of resolution intervals for the selected ${trendPeriod} period`;
+                  drilldownTasksList = distributionTasks.filter(t => t.closureDate);
+                  break;
+                case 'RiskCritical':
+                  modalTitle = 'Critical Threat / Breached Risks';
+                  modalSubtitle = 'Active backlog items that have officially breached resolution windows';
+                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                    const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
+                    return isOpen && getTaskSlaTimes(t, nowStr).isResolutionBreached;
+                  });
+                  break;
+                case 'RiskHigh':
+                  modalTitle = 'High Threat Breach Risks (>80%)';
+                  modalSubtitle = 'Active backlog items with above 80% SLA limits consumed';
+                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                    const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
+                    if (!isOpen) return false;
+                    const sla = getTaskSlaTimes(t, nowStr);
+                    if (sla.isResolutionBreached) return false;
+                    const ratio = sla.resolutionTimeMin / (sla.resolutionLimitMin || 1);
+                    return ratio >= 0.8;
+                  });
+                  break;
+                case 'RiskMedium':
+                  modalTitle = 'Medium Threat Breach Risks (50%-80%)';
+                  modalSubtitle = 'Active items with 50% to 80% SLA limits consumed';
+                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                    const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
+                    if (!isOpen) return false;
+                    const sla = getTaskSlaTimes(t, nowStr);
+                    if (sla.isResolutionBreached) return false;
+                    const ratio = sla.resolutionTimeMin / (sla.resolutionLimitMin || 1);
+                    return ratio >= 0.5 && ratio < 0.8;
+                  });
+                  break;
+                case 'RiskLow':
+                  modalTitle = 'Low Threat Risks / Stable';
+                  modalSubtitle = 'Active items with below 50% SLA memory consumed';
+                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                    const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
+                    if (!isOpen) return false;
+                    const sla = getTaskSlaTimes(t, nowStr);
+                    if (sla.isResolutionBreached) return false;
+                    const ratio = sla.resolutionTimeMin / (sla.resolutionLimitMin || 1);
+                    return ratio < 0.5;
+                  });
+                  break;
+                default:
+                  modalTitle = `${metricsDrilldownStatus} Telemetry`;
+                  modalSubtitle = 'Operational telemetry filter view';
+                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus);
+                  break;
+              }
+
+              // Sla Compliance Counts Calculations
+              const compliantSlaCount = distributionTasks.filter(t => {
+                const sla = getTaskSlaTimes(t, nowStr);
+                return metricsDrilldownStatus === 'ResponseSLA' ? !sla.isResponseBreached : !sla.isResolutionBreached;
+              }).length;
+              const breachedSlaCount = distributionTasks.filter(t => {
+                const sla = getTaskSlaTimes(t, nowStr);
+                return metricsDrilldownStatus === 'ResponseSLA' ? sla.isResponseBreached : sla.isResolutionBreached;
+              }).length;
+
+              // Apply the user-selected SLA local compliance filter
+              if (metricsDrilldownStatus === 'ResponseSLA' || metricsDrilldownStatus === 'ResolutionSLA') {
+                drilldownTasksList = drilldownTasksList.filter(t => {
+                  const sla = getTaskSlaTimes(t, nowStr);
+                  const breached = metricsDrilldownStatus === 'ResponseSLA' ? sla.isResponseBreached : sla.isResolutionBreached;
+                  if (drilldownComplianceFilter === 'breached') return breached;
+                  if (drilldownComplianceFilter === 'compliant') return !breached;
+                  return true;
+                });
+              }
+
+              return (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md font-sans">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-left animate-fade-in"
+                  >
+                    <div className="p-6 border-b border-slate-850 flex items-center justify-between select-none">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2.5 rounded-xl shrink-0 bg-indigo-500/10 text-indigo-400"
+                        )}>
+                          <Activity className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                            <span>{modalTitle}</span>
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/10 text-indigo-400 font-extrabold"
+                            )}>
+                              {drilldownTasksList.length} Total
+                            </span>
+                          </h3>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                            {modalSubtitle}
+                          </p>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {projectFilteredTasks
-                          .filter(t => t.status === metricsDrilldownStatus)
-                          .map((task) => {
+                      <button
+                        onClick={() => {
+                          setMetricsDrilldownStatus(null);
+                          setDrilldownComplianceFilter('all');
+                        }}
+                        className="p-2 hover:bg-slate-850 rounded-xl text-slate-500 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Category specific dynamic SLA filtering controllers */}
+                    {(metricsDrilldownStatus === 'ResponseSLA' || metricsDrilldownStatus === 'ResolutionSLA') && (
+                      <div className="px-6 py-3.5 bg-slate-950/40 border-b border-slate-850/60 flex items-center justify-between flex-wrap gap-2 text-xs">
+                        <span className="text-[9.5px] uppercase font-black text-slate-400 tracking-wider">
+                          SLA Compliance Filter:
+                        </span>
+                        <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                          <button
+                            onClick={() => setDrilldownComplianceFilter('all')}
+                            className={cn(
+                              "px-2.5 py-1 text-[9.5px] uppercase font-black tracking-wider rounded-md cursor-pointer transition-all",
+                              drilldownComplianceFilter === 'all' ? "bg-indigo-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"
+                            )}
+                          >
+                            Show All ({compliantSlaCount + breachedSlaCount})
+                          </button>
+                          <button
+                            onClick={() => setDrilldownComplianceFilter('compliant')}
+                            className={cn(
+                              "px-2.5 py-1 text-[9.5px] uppercase font-black tracking-wider rounded-md cursor-pointer transition-all",
+                              drilldownComplianceFilter === 'compliant' ? "bg-emerald-650 text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/10 shadow-sm" : "text-slate-500 hover:text-slate-300"
+                            )}
+                          >
+                            Compliant Only ({compliantSlaCount})
+                          </button>
+                          <button
+                            onClick={() => setDrilldownComplianceFilter('breached')}
+                            className={cn(
+                              "px-2.5 py-1 text-[9.5px] uppercase font-black tracking-wider rounded-md cursor-pointer transition-all",
+                              drilldownComplianceFilter === 'breached' ? "bg-rose-650 text-rose-400 font-bold bg-rose-500/10 border border-rose-500/10 shadow-sm" : "text-slate-500 hover:text-slate-300"
+                            )}
+                          >
+                            Breached Only ({breachedSlaCount})
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {drilldownTasksList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500">
+                          <AlertCircle className="w-10 h-10 mb-3 text-slate-700" />
+                          <p className="text-xs uppercase font-black tracking-wider w-full">No active records</p>
+                          <p className="text-[10px] uppercase font-bold text-slate-600 mt-1">There are no operational backlog tickets with status "{metricsDrilldownStatus}"</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {drilldownTasksList.map((task) => {
                             const priorityColor = PRIORITY_COLORS[task.priority] || '#94a3b8';
+                            const slaInfo = getTaskSlaTimes(task, nowStr);
+                            const isResponseBreached = slaInfo.isResponseBreached;
+                            const isResolutionBreached = slaInfo.isResolutionBreached;
+
                             return (
                               <div
                                 key={task.ticketId}
@@ -10815,11 +11421,32 @@ Guidelines:
                                     <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-850">
                                       {task.supportLevel}
                                     </span>
+                                    <span className={cn(
+                                      "text-[9px] font-black uppercase px-2 py-0.5 rounded border",
+                                      task.status === 'Hold' ? "bg-amber-500/10 text-amber-400 border-amber-500/10" :
+                                      task.status === 'In-Progress' ? "bg-blue-500/10 text-blue-400 border-blue-500/10" :
+                                      task.status === 'Resolved' || task.status === 'Closed' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/10" :
+                                      "bg-purple-500/10 text-purple-400 border-purple-500/10"
+                                    )}>
+                                      {task.status}
+                                    </span>
                                   </div>
                                   
                                   <p className="text-xs text-slate-350 group-hover:text-white transition-colors leading-relaxed font-sans line-clamp-2">
                                     {task.description}
                                   </p>
+
+                                  {/* Dynamic duration statistics displayed inside list rows! */}
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 items-center bg-slate-900/50 p-1.5 rounded-lg border border-slate-850/40 w-fit select-none text-[8.5px] font-mono uppercase font-black tracking-tight">
+                                    <span className="text-slate-500">SLA Stats:</span>
+                                    <span className={cn(isResponseBreached ? "text-rose-450 text-rose-400" : "text-emerald-450 text-emerald-400")}>
+                                      Resp: {formatDuration(slaInfo.responseTimeMin * 60000)} / {formatDuration(slaInfo.responseLimitMin * 60000)} ({isResponseBreached ? 'Breached' : 'Met'})
+                                    </span>
+                                    <span className="text-slate-700">|</span>
+                                    <span className={cn(isResolutionBreached ? "text-rose-450 text-rose-400" : "text-emerald-450 text-emerald-400")}>
+                                      Reso: {formatDuration(slaInfo.resolutionTimeMin * 60000)} / {formatDuration((slaInfo.resolutionLimitMin || 0) * 60000)} ({isResolutionBreached ? 'Breached' : 'Met'})
+                                    </span>
+                                  </div>
 
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[9px] font-mono text-slate-500 font-extrabold uppercase pt-1">
                                     <span className="flex items-center gap-1">
@@ -10871,12 +11498,13 @@ Guidelines:
                               </div>
                             );
                           })}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-            )}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+              );
+            })()}
           </AnimatePresence>
 
           {/* Configurable Taxonomies & Schema Manager Dialogue Modal */}
