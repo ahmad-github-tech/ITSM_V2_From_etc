@@ -1657,6 +1657,7 @@ Signatures Registered:
   const [assetFilterOwner, setAssetFilterOwner] = useState('All');
   const [assetFilterProject, setAssetFilterProject] = useState('All');
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+  const [isInlineDashboardOpen, setIsInlineDashboardOpen] = useState(true);
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
   const [isCategoryConfigModalOpen, setIsCategoryConfigModalOpen] = useState(false);
   const [activeConfigCatId, setActiveConfigCatId] = useState<string>('laptop');
@@ -6515,7 +6516,163 @@ Guidelines:
                           <h3 className="text-sm font-black text-white uppercase tracking-widest">My Workbook</h3>
                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Real-time incident ledger and resolution tracking</p>
                         </div>
+                        <button 
+                          onClick={() => setIsInlineDashboardOpen(!isInlineDashboardOpen)}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
+                            isInlineDashboardOpen 
+                              ? "bg-indigo-600/15 text-indigo-400 border-indigo-500/35 hover:bg-indigo-600/25" 
+                              : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                          )}
+                          title="Toggle inline operational hub analytics dashboard"
+                        >
+                          <Activity className={cn("w-3.5 h-3.5", isInlineDashboardOpen && "animate-pulse text-indigo-400")} />
+                          <span>{isInlineDashboardOpen ? "Hide Hub Stats" : "Show Hub Stats"}</span>
+                        </button>
                       </div>
+
+                      <AnimatePresence mode="wait">
+                        {isInlineDashboardOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0, y: -10 }}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            exit={{ opacity: 0, height: 0, y: -10 }}
+                            className="bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 mb-3 space-y-3.5 overflow-hidden shadow-lg shadow-black/15 select-text"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                                <span className="text-[10px] uppercase font-black text-slate-300 tracking-widest">
+                                  {selectedProject === 'All' ? 'Consolidated Operations Command' : `${selectedProject} Hub telemetry`}
+                                </span>
+                              </div>
+                              <span className="text-[9px] font-mono text-slate-500 font-extrabold uppercase select-none">
+                                Real-Time SLA &amp; Incident Metrics
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+                              {/* 1. Backlog Level Card */}
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Backlog Tickets</span>
+                                  <div className="flex items-baseline gap-2 mt-1.5">
+                                    <span className="text-xl font-black font-sans text-violet-400">
+                                      {charts.slaMetrics.activeOpenCount}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">active</span>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono text-slate-500">
+                                  <span>Hold: {projectFilteredTasks.filter(t => t.status === 'Hold').length}</span>
+                                  <span>In-Prog: {projectFilteredTasks.filter(t => t.status === 'In-Progress').length}</span>
+                                </div>
+                              </div>
+
+                              {/* 2. Response Compliance Card */}
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Response SLA</span>
+                                  <div className="flex items-baseline gap-2 mt-1.5">
+                                    <span className={cn(
+                                      "text-xl font-black font-sans",
+                                      charts.slaMetrics.responseCompliance >= 90 ? "text-emerald-400" :
+                                      charts.slaMetrics.responseCompliance >= 75 ? "text-amber-400" : "text-rose-400"
+                                    )}>
+                                      {charts.slaMetrics.responseCompliance}%
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">compliance</span>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
+                                  <span className="text-slate-500">Avg MTTA:</span>
+                                  <span className="text-indigo-400 font-black">{formatDuration(charts.slaMetrics.mtta * 60000) || '0m'}</span>
+                                </div>
+                              </div>
+
+                              {/* 3. Resolution Compliance Card */}
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Resolution SLA</span>
+                                  <div className="flex items-baseline gap-2 mt-1.5">
+                                    <span className={cn(
+                                      "text-xl font-black font-sans",
+                                      charts.slaMetrics.resolutionCompliance >= 90 ? "text-emerald-400" :
+                                      charts.slaMetrics.resolutionCompliance >= 75 ? "text-amber-400" : "text-rose-400"
+                                    )}>
+                                      {charts.slaMetrics.resolutionCompliance}%
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-bold lowercase select-none">compliance</span>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5 pt-2 border-t border-slate-900/60 flex items-center justify-between text-[9px] font-mono select-none">
+                                  <span className="text-slate-500">Avg MTTR:</span>
+                                  <span className="text-sky-400 font-black">{formatDuration(charts.slaMetrics.mttr * 60000) || '0m'}</span>
+                                </div>
+                              </div>
+
+                              {/* 4. Threat / Breach Risk Card */}
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-500 block select-none">Breach Threat Risk</span>
+                                  <div className="flex items-center gap-2 mt-1.5">
+                                    <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-current", charts.slaMetrics.breachRiskColor)}>
+                                      {charts.slaMetrics.breachRiskStatus}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="mt-2.5">
+                                  <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden flex">
+                                    {charts.slaMetrics.activeOpenCount > 0 ? (
+                                      <>
+                                        <div style={{ width: `${(charts.slaMetrics.riskCritical / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-rose-500" title="Breached" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskHigh / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-orange-500" title="High Risk" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskMedium / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-amber-500" title="Medium Risk" />
+                                        <div style={{ width: `${(charts.slaMetrics.riskLow / charts.slaMetrics.activeOpenCount) * 105}%` }} className="h-full bg-emerald-500" title="Stable / Low" />
+                                      </>
+                                    ) : (
+                                      <div className="w-full h-full bg-slate-800" />
+                                    )}
+                                  </div>
+                                  <div className="flex justify-between text-[7.5px] font-mono text-slate-550 font-black mt-1 uppercase">
+                                    <span title="Critical / Breached" className={charts.slaMetrics.riskCritical > 0 ? "text-rose-500 font-black" : ""}>Cri: {charts.slaMetrics.riskCritical}</span>
+                                    <span title="High Risk" className={charts.slaMetrics.riskHigh > 0 ? "text-orange-500 font-black" : ""}>Hgh: {charts.slaMetrics.riskHigh}</span>
+                                    <span title="Medium Risk" className={charts.slaMetrics.riskMedium > 0 ? "text-amber-500 font-black" : ""}>Med: {charts.slaMetrics.riskMedium}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 5. Priority Load Breakdown */}
+                              <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between col-span-2 lg:col-span-1">
+                                <div>
+                                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-550 block select-none">Load Characteristics</span>
+                                  <div className="mt-1.5 grid grid-cols-4 gap-1.5 select-none">
+                                    <div className="bg-rose-500/5 p-1 rounded border border-rose-500/10 text-center">
+                                      <p className="text-[8px] font-black text-rose-400 font-mono">P1</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P1').length}</p>
+                                    </div>
+                                    <div className="bg-orange-500/5 p-1 rounded border border-orange-500/10 text-center">
+                                      <p className="text-[8px] font-black text-orange-400 font-mono">P2</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P2').length}</p>
+                                    </div>
+                                    <div className="bg-amber-500/5 p-1 rounded border border-amber-500/10 text-center">
+                                      <p className="text-[8px] font-black text-amber-400 font-mono">P3</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P3').length}</p>
+                                    </div>
+                                    <div className="bg-emerald-500/5 p-1 rounded border border-emerald-500/10 text-center">
+                                      <p className="text-[8px] font-black text-emerald-400 font-mono">P4</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P4').length}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-[8.5px] font-mono text-slate-500 font-extrabold mt-1 uppercase text-right leading-none select-none">
+                                  {projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved').length} Resolved
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                       <div className="flex items-center gap-4">
                         <div className="relative flex-1">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
