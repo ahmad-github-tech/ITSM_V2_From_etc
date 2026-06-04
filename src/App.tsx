@@ -974,7 +974,7 @@ Signatures Registered:
   const [attachmentTask, setAttachmentTask] = useState<SupportTask | null>(null);
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
   const [isUtilityDropdownOpen, setIsUtilityDropdownOpen] = useState(false);
-  const [analyticsSubView, setAnalyticsSubView] = useState<'system' | 'productivity'>('system');
+  const [analyticsSubView, setAnalyticsSubView] = useState<'system' | 'productivity' | 'predictive'>('system');
   const [prodSelectedRes, setProdSelectedRes] = useState<string>('All');
 
   // Email Dispatcher States for Client Reporting
@@ -2252,6 +2252,143 @@ Signatures Registered:
       active: currentTasks.filter(t => t.status !== 'Closed').length
     };
   }, [projectFilteredTasks, projectConfigs]);
+
+  const predictiveMetrics = useMemo(() => {
+    const distinctProjects = Array.from(new Set(tasks.map(t => t.projectId)));
+    const heatmapProjects = distinctProjects.length > 0 ? distinctProjects : ['HR-Portal', 'Salesforce-Sync', 'Financials'];
+    const priorities: Priority[] = ['P1', 'P2', 'P3', 'P4'];
+
+    const heatmapData = heatmapProjects.map(projId => {
+      const projTasks = tasks.filter(t => t.projectId === projId);
+      const priorityCells = priorities.map(pri => {
+        const cellTasks = projTasks.filter(t => t.priority === pri);
+        if (cellTasks.length === 0) {
+          return { priority: pri, count: 0, complianceRate: null, active: 0, breached: 0 };
+        }
+        let breachedCount = 0;
+        let activeCount = 0;
+        cellTasks.forEach(t => {
+          const sla = getTaskSlaTimes(t, new Date().toISOString());
+          if (sla.isResolutionBreached || sla.isResponseBreached) {
+            breachedCount++;
+          }
+          if (t.status !== 'Closed' && t.status !== 'Resolved') {
+            activeCount++;
+          }
+        });
+        const compliantCount = cellTasks.length - breachedCount;
+        const complianceRate = Math.round((compliantCount / cellTasks.length) * 100);
+        return {
+          priority: pri,
+          count: cellTasks.length,
+          complianceRate,
+          active: activeCount,
+          breached: breachedCount
+        };
+      });
+      return {
+        projectId: projId,
+        priorities: priorityCells
+      };
+    });
+
+    const projectCongestion = heatmapProjects.map(projId => {
+      const projTasks = tasks.filter(t => t.projectId === projId);
+      const activeTasks = projTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
+      const unresolvedP1 = activeTasks.filter(t => t.priority === 'P1').length;
+      
+      let overdueCount = 0;
+      activeTasks.forEach(t => {
+        const sla = getTaskSlaTimes(t, new Date().toISOString());
+        if (sla.isResolutionBreached || sla.isResponseBreached) {
+          overdueCount++;
+        }
+      });
+
+      const score = Math.round(activeTasks.length * 1.5 + unresolvedP1 * 3 + overdueCount * 4);
+      let riskLevel: 'LOW' | 'MEDIUM' | 'CRITICAL' = 'LOW';
+      let desc = 'Operational queue is optimized. No imminent overload.';
+      if (score > 15) {
+        riskLevel = 'CRITICAL';
+        desc = 'Queue saturated! Service level times projected to breach.';
+      } else if (score > 6) {
+        riskLevel = 'MEDIUM';
+        desc = 'Queue elevated. Close tracking recommended.';
+      }
+
+      return {
+        projectId: projId,
+        score,
+        riskLevel,
+        desc,
+        activeCount: activeTasks.length,
+        overdueCount
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    const activeResources = Array.from(new Set(tasks.map(t => t.assignedTo).filter(Boolean))) as string[];
+    const resourceOverloads = activeResources.map(resName => {
+      const resTasks = tasks.filter(t => t.assignedTo === resName);
+      const activeTasks = resTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
+      const unresolvedP1 = activeTasks.filter(t => t.priority === 'P1').length;
+      
+      let overdueCount = 0;
+      activeTasks.forEach(t => {
+        const sla = getTaskSlaTimes(t, new Date().toISOString());
+        if (sla.isResolutionBreached) overdueCount++;
+      });
+
+      const score = activeTasks.length * 2 + overdueCount * 3;
+      let status = 'BALANCED';
+      let danger = false;
+      if (score >= 6) {
+        status = 'FATIGUE THREAT';
+        danger = true;
+      } else if (score >= 3) {
+        status = 'ELEVATED WORKLOAD';
+      }
+
+      return {
+        name: resName,
+        activeTasksCount: activeTasks.length,
+        unresolvedP1,
+        overdueCount,
+        score,
+        status,
+        danger
+      };
+    }).filter(r => r.activeTasksCount > 0).sort((a, b) => b.score - a.score);
+
+    const nearBreaches = tasks
+      .filter(t => t.status !== 'Closed' && t.status !== 'Resolved')
+      .map(t => {
+        const sla = getTaskSlaTimes(t, new Date().toISOString());
+        const config = projectConfigs.find(c => c.projectId === t.projectId);
+        const limitHrs = config?.slas?.[t.priority]?.resolution || 24;
+        const limitMin = limitHrs * 60;
+        const elapsedMin = sla.resolutionTimeMin;
+        const percentElapsed = Math.round((elapsedMin / limitMin) * 100);
+        const minutesLeft = Math.max(0, limitMin - elapsedMin);
+
+        return {
+          task: t,
+          minutesLeft,
+          percentElapsed,
+          isBreached: elapsedMin > limitMin
+        };
+      })
+      .filter(item => !item.isBreached)
+      .sort((a, b) => b.percentElapsed - a.percentElapsed)
+      .slice(0, 3);
+
+    return {
+      heatmapProjects,
+      heatmapData,
+      projectCongestion,
+      resourceOverloads,
+      nearBreaches
+    };
+  }, [tasks, projectConfigs]);
 
   const currentConfig = projectConfigs.find(c => c.projectId === configSelectedProject);
   const configPIndex = projectConfigs.findIndex(c => c.projectId === configSelectedProject);
@@ -4864,6 +5001,23 @@ Guidelines:
     );
   }
 
+  const handleHeatmapCellClick = (projectId: string, priority: string) => {
+    setSelectedProject(projectId);
+    setFilterPriority(priority);
+    setFilterStatus('All');
+    
+    setTimeout(() => {
+      // Find table section or spreadsheet area
+      const element = document.getElementById('work-orders-table-section') || document.getElementById('main-workbook-panel') || document.getElementById('workbook-tab-container');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // Fallback scrolling
+        window.scrollTo({ top: window.innerHeight * 1.1, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const handleDrilldown = (type: string, param?: any) => {
     const nowStr = new Date().toISOString();
     let filteredList: SupportTask[] = [];
@@ -5378,10 +5532,30 @@ Guidelines:
           <div className="flex items-center gap-4">
             
             {/* Permanent ITSM Branding */}
-            <div className="flex items-center gap-2 border-r border-slate-800/80 pr-4">
-              <Activity className="w-5 h-5 text-blue-500 animate-pulse shrink-0" />
-              <span className="font-sans font-black tracking-widest text-[13px] text-white uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:inline">ITSM PORTAL</span>
-            </div>
+            <button
+              onClick={async () => {
+                setActiveTab('workbook');
+                setSelectedProject('All');
+                setSearchQuery('');
+                setFilterLevel('All');
+                setFilterPriority('All');
+                setFilterStatus('All');
+                setFilterResponseSla('All');
+                setFilterResolutionSla('All');
+                try {
+                  await Promise.all([fetchTasks(), fetchProjects(), fetchUsers(), fetchCategories()]);
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="flex items-center gap-2 border-r border-slate-800/80 pr-4 group cursor-pointer text-left focus:outline-none focus:ring-0 select-none bg-transparent border-t-0 border-b-0 border-l-0 p-0"
+              title="Return to Ticketing Workspace, Reset Filter Settings & Synchronize Live Data"
+            >
+              <Activity className="w-5 h-5 text-blue-500 animate-pulse shrink-0 group-hover:scale-110 group-hover:text-cyan-400 transition-all duration-300" />
+              <span className="font-sans font-black tracking-widest text-[13px] text-white uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:inline group-hover:from-white group-hover:to-cyan-400/80 transition-all duration-300">
+                ITSM PORTAL
+              </span>
+            </button>
 
             {/* Active Operational Workspace Selector (The App-Switcher style dropdown) */}
             <div className="relative">
@@ -6909,6 +7083,18 @@ Guidelines:
                                 >
                                   Resource Productivity
                                 </button>
+                                <button 
+                                  onClick={() => setAnalyticsSubView('predictive')}
+                                  className={cn(
+                                    "px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer select-none flex items-center gap-1",
+                                    analyticsSubView === 'predictive' 
+                                      ? "bg-slate-800 text-white border border-slate-700/85" 
+                                      : "text-slate-500 hover:text-slate-300"
+                                  )}
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                                  Predictive Bottlenecks
+                                </button>
                               </div>
                             </div>
 
@@ -7060,7 +7246,7 @@ Guidelines:
                                   </div>
                                 </div>
                               </div>
-                            ) : (
+                            ) : analyticsSubView === 'productivity' ? (
                               <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
                                   <div className="bg-slate-950/65 p-3 rounded-lg border border-slate-850 flex items-center justify-between">
@@ -7141,6 +7327,361 @@ Guidelines:
                                         </ResponsiveContainer>
                                       );
                                     })()}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-4 select-text">
+                                {/* Top mini-KPI KPI counters */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Service Bottlenecks</span>
+                                      <h4 className="text-sm font-black text-rose-400 font-mono mt-0.5">
+                                        {predictiveMetrics.projectCongestion.filter(p => p.riskLevel === 'CRITICAL').length} Critical Queues
+                                      </h4>
+                                    </div>
+                                    <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                                  </div>
+
+                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Risk Staging Radar</span>
+                                      <h4 className="text-sm font-black text-amber-400 font-mono mt-0.5">
+                                        {predictiveMetrics.nearBreaches.length} Near SLA-Breach
+                                      </h4>
+                                    </div>
+                                    <Clock className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
+                                  </div>
+
+                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Resource Saturation</span>
+                                      <h4 className="text-sm font-black text-indigo-400 font-mono mt-0.5">
+                                        {predictiveMetrics.resourceOverloads.filter(r => r.danger).length} Overloaded specialists
+                                      </h4>
+                                    </div>
+                                    <Users className="w-4 h-4 text-indigo-400 shrink-0" />
+                                  </div>
+
+                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Dynamic SLA Rate</span>
+                                      <h4 className="text-sm font-black text-emerald-400 font-mono mt-0.5">
+                                        {(() => {
+                                          let totalComp = 0;
+                                          let countComp = 0;
+                                          predictiveMetrics.heatmapData.forEach(p => {
+                                            p.priorities.forEach(pri => {
+                                              if (pri.complianceRate !== null) {
+                                                totalComp += pri.complianceRate;
+                                                countComp++;
+                                              }
+                                            });
+                                          });
+                                          return countComp > 0 ? `${Math.round(totalComp / countComp)}%` : '100%';
+                                        })()} Aggregate
+                                      </h4>
+                                    </div>
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                  {/* Left: SLA Interactive Heatmap Grid (8 Columns span) */}
+                                  <div className="lg:col-span-7 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div>
+                                          <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">
+                                            Interactive SLA Compliance Heatmap Matrix
+                                          </h3>
+                                          <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                                            Priority vs. Project Compliance (Combined MTTA &amp; MTTR status)
+                                          </p>
+                                        </div>
+                                        <button 
+                                          onClick={() => {
+                                            setSelectedProject('All');
+                                            setFilterPriority('All');
+                                            setFilterStatus('All');
+                                          }}
+                                          className="text-[9px] bg-slate-900 border border-slate-800 text-slate-400 font-black tracking-wider uppercase px-2 py-1 rounded hover:text-white transition-all hover:bg-slate-800"
+                                        >
+                                          Reset Heatmap Filters
+                                        </button>
+                                      </div>
+
+                                      {/* Responsive Matrix Grid of the Heatmap */}
+                                      <div className="overflow-x-auto custom-scrollbar pt-2">
+                                        <table className="w-full border-collapse border-spacing-0">
+                                          <thead>
+                                            <tr>
+                                              <th className="bg-slate-950/60 p-2 border border-slate-850 text-left text-[9px] font-black uppercase text-slate-500 w-20">Priority</th>
+                                              {predictiveMetrics.heatmapProjects.map(projId => (
+                                                <th key={projId} className="bg-slate-950/60 p-2 border border-slate-850 text-center text-[9px] font-black uppercase text-slate-400 truncate max-w-[100px]" title={projId}>
+                                                  {projId}
+                                                </th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(['P1', 'P2', 'P3', 'P4'] as const).map(prio => (
+                                              <tr key={prio}>
+                                                <td className="bg-slate-950/30 p-2.5 border border-slate-850 text-left text-[10px] font-black font-mono text-slate-400">
+                                                  {prio}
+                                                </td>
+                                                {predictiveMetrics.heatmapProjects.map(projId => {
+                                                  const projData = predictiveMetrics.heatmapData.find(h => h.projectId === projId);
+                                                  const cell = projData?.priorities.find(pr => pr.priority === prio);
+
+                                                  const isFilteredNow = selectedProject === projId && filterPriority === prio;
+
+                                                  if (!cell || cell.complianceRate === null) {
+                                                    return (
+                                                      <td key={projId} className="p-2 border border-slate-850 text-center text-[10px] text-slate-600 bg-slate-900/10 border-dashed">
+                                                        -
+                                                      </td>
+                                                    );
+                                                  }
+
+                                                  const rate = cell.complianceRate;
+                                                  let statusBg = "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30";
+                                                  if (rate >= 85) statusBg = "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30";
+                                                  else if (rate >= 50) statusBg = "bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border-amber-500/30";
+
+                                                  return (
+                                                    <td 
+                                                      key={projId} 
+                                                      onClick={() => handleHeatmapCellClick && handleHeatmapCellClick(projId, prio)}
+                                                      className={cn(
+                                                        "p-2 border border-slate-850 text-center transition-all cursor-pointer select-none",
+                                                        statusBg,
+                                                        isFilteredNow && "ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-950 scale-95 font-black"
+                                                      )}
+                                                      title={`SLA Compliance: ${rate}%\nActive Tickets: ${cell.active}\nBreached Tickets: ${cell.breached}\nTotal: ${cell.count} tickets\nClick to filter table instantly`}
+                                                    >
+                                                      <div className="flex flex-col items-center">
+                                                        <span className="font-mono text-xs font-black">{rate}%</span>
+                                                        <span className="text-[7px] text-slate-400 font-bold">{cell.active} act / {cell.breached} br</span>
+                                                      </div>
+                                                    </td>
+                                                  );
+                                                })}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4 border-t border-slate-850/40 pt-2 flex items-center justify-between text-[8px] text-slate-500 font-bold uppercase tracking-wider select-none">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-emerald-500/25 border border-emerald-500/30" /> Optimal (&gt;=85%)</div>
+                                        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-amber-500/25 border border-amber-500/30" /> At Risk (50-84%)</div>
+                                        <div className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-rose-500/25 border border-rose-500/30" /> Breaching (&lt;50%)</div>
+                                      </div>
+                                      <div className="animate-pulse flex items-center gap-1">
+                                        <Sparkles className="w-2.5 h-2.5 text-indigo-400" /> Click Cell to Segment
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Right: Operational Queue Congestion indices (5 columns span) */}
+                                  <div className="lg:col-span-5 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
+                                    <div>
+                                      <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400 mb-0.5">
+                                        Queue Congestion Index (QCI)
+                                      </h3>
+                                      <p className="text-[9px] text-slate-500 font-bold uppercase mb-4">
+                                        Active queue loading per workspace project
+                                      </p>
+
+                                      <div className="space-y-2.5 max-h-[195px] overflow-y-auto custom-scrollbar pr-1">
+                                        {predictiveMetrics.projectCongestion.map(item => {
+                                          const isCritical = item.riskLevel === 'CRITICAL';
+                                          const isMedium = item.riskLevel === 'MEDIUM';
+
+                                          return (
+                                            <div key={item.projectId} className="bg-slate-950/60 rounded-lg p-2.5 border border-slate-850/60 flex items-center justify-between">
+                                              <div className="flex-1 min-w-0 pr-3">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="font-extrabold text-[11px] text-slate-200 truncate">{item.projectId}</span>
+                                                  <span className={cn(
+                                                    "text-[7px] px-1 rounded uppercase font-black tracking-widest",
+                                                    isCritical ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" : 
+                                                    isMedium ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : 
+                                                    "bg-slate-800 text-slate-400"
+                                                  )}>
+                                                    {item.riskLevel}
+                                                  </span>
+                                                </div>
+                                                <p className="text-[8px] text-slate-500 truncate mt-0.5">{item.desc}</p>
+                                              </div>
+
+                                              <div className="text-right shrink-0 flex items-center gap-3">
+                                                <div className="flex flex-col items-end">
+                                                  <span className="font-mono text-[10px] font-black text-slate-300">QCI: {item.score}</span>
+                                                  <span className="text-[7px] text-slate-500 font-bold">{item.activeCount} open / {item.overdueCount} overdue</span>
+                                                </div>
+                                                <div className="w-10 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                                  <div 
+                                                    className={cn(
+                                                      "h-full rounded-full",
+                                                      isCritical ? "bg-rose-500 shadow shadow-rose-500/50" : 
+                                                      isMedium ? "bg-amber-500 shadow shadow-amber-500/50" : 
+                                                      "bg-emerald-500"
+                                                    )} 
+                                                    style={{ width: `${Math.min(item.score * 4, 100)}%` }} 
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+
+                                    <div className="text-[8px] italic text-slate-500 font-bold uppercase mt-2 select-none">
+                                      * QCI is dynamic: weights active volume, high priorities &amp; response delay breach times.
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Bottom Left: SLA Warning Radar Near Breaches */}
+                                  <div className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <Brain className="w-4 h-4 text-amber-400 animate-pulse-slow" />
+                                      <div>
+                                        <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">
+                                          Predictive SLA Warning Radar
+                                        </h3>
+                                        <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                                          Active workspace tickets closest to breaching resolution standard
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                      {predictiveMetrics.nearBreaches.length === 0 ? (
+                                        <div className="p-6 bg-slate-900/10 border border-dashed border-slate-850 rounded-lg text-center">
+                                          <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1.5 opacity-60" />
+                                          <p className="text-[10px] font-black uppercase text-slate-500 tracking-wider">All Clear</p>
+                                          <p className="text-[9px] text-slate-600 mt-0.5 font-bold uppercase">No tickets in immediate breach threat zone</p>
+                                        </div>
+                                      ) : (
+                                        predictiveMetrics.nearBreaches.map(item => {
+                                          const isHighRisk = item.percentElapsed >= 75;
+                                          const hr = Math.floor(item.minutesLeft / 60);
+                                          const min = Math.round(item.minutesLeft % 60);
+
+                                          return (
+                                            <div key={item.task.id} className="bg-slate-950/60 p-3 rounded-xl border border-slate-850 flex flex-col justify-between hover:border-amber-500/20 transition-colors">
+                                              <div className="flex justify-between items-start gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-[9px] font-black text-amber-500">#{item.task.id}</span>
+                                                    <span className="font-extrabold text-[10px] text-slate-200 truncate">{item.task.title}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-3 text-[8px] text-slate-500 font-bold uppercase mt-1">
+                                                    <span>Assignee: <span className="text-slate-300 font-black">{item.task.assignedTo || 'Unassigned'}</span></span>
+                                                    <span>Priority: <span className="text-rose-400 font-black font-mono">{item.task.priority}</span></span>
+                                                  </div>
+                                                </div>
+
+                                                <div className="text-right shrink-0">
+                                                  <span className={cn(
+                                                    "text-[9px] font-black font-mono block",
+                                                    isHighRisk ? "text-rose-400 animate-pulse" : "text-amber-400"
+                                                  )}>
+                                                    {hr > 0 ? `${hr}h ` : ''}{min}m left
+                                                  </span>
+                                                  <span className="text-[7px] text-slate-500 uppercase font-black block">To Breach Limit</span>
+                                                </div>
+                                              </div>
+
+                                              {/* Actionable allocation controls */}
+                                              <div className="mt-3 flex items-center justify-between gap-4">
+                                                <div className="flex-grow">
+                                                  <div className="flex justify-between text-[7px] text-slate-500 font-bold uppercase mb-1">
+                                                    <span>Time Elapsed</span>
+                                                    <span>{item.percentElapsed}%</span>
+                                                  </div>
+                                                  <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                                                    <div 
+                                                      className={cn(
+                                                        "h-full rounded-full transition-all duration-500",
+                                                        isHighRisk ? "bg-rose-500" : "bg-amber-500"
+                                                      )}
+                                                      style={{ width: `${item.percentElapsed}%` }} 
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <button 
+                                                  onClick={() => setEditingTask(item.task)}
+                                                  className="shrink-0 bg-indigo-600 border border-indigo-500/50 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                                >
+                                                  <Wrench className="w-2.5 h-2.5 text-indigo-200" />
+                                                  Intervene &amp; Route
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Bottom Right: Team Capacity load and fatigue fatigue indicators */}
+                                  <div className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <Users className="w-4 h-4 text-indigo-400" />
+                                      <div>
+                                        <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400">
+                                          Specialist Allocation &amp; Fatigue Monitor
+                                        </h3>
+                                        <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                                          Active ticket allocations and cognitive load fatigue status
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2.5 max-h-[170px] overflow-y-auto custom-scrollbar">
+                                      {predictiveMetrics.resourceOverloads.length === 0 ? (
+                                        <div className="p-5 text-center text-slate-600 text-[10px] uppercase font-bold">
+                                          No active specialist assignments
+                                        </div>
+                                      ) : (
+                                        predictiveMetrics.resourceOverloads.map(res => (
+                                          <div key={res.name} className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-850/60 flex items-center justify-between">
+                                            <div className="flex-grow min-w-0 pr-3">
+                                              <span className="font-extrabold text-[11px] text-slate-200 block truncate">{res.name}</span>
+                                              <div className="flex items-center gap-1.5 mt-0.5 text-[8px] font-black uppercase text-slate-500">
+                                                <span>Active workload backlog: <span className="text-indigo-400 text-[9px] font-mono">{res.activeTasksCount}</span></span>
+                                                {res.unresolvedP1 > 0 && (
+                                                  <span className="text-[8px] bg-red-950 text-red-400 border border-red-900/30 px-1 py-0.2 rounded font-mono font-bold">
+                                                    {res.unresolvedP1} P1s!
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            <div className="text-right shrink-0">
+                                              <span className={cn(
+                                                "text-[9px] font-black tracking-widest uppercase block px-1.5 py-0.5 rounded border leading-none font-mono",
+                                                res.danger ? "bg-red-500/10 text-red-400 border-red-500/20" : 
+                                                res.score >= 3 ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                                                "bg-slate-900 text-slate-400 border-slate-800"
+                                              )}>
+                                                {res.status}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
