@@ -1174,6 +1174,13 @@ Signatures Registered:
     localStorage.setItem('sflow_change_release_records', JSON.stringify(changeReleaseRecords));
   }, [changeReleaseRecords]);
 
+  // Handle auto-opening of the ticketing form sidebar when navigating to Ticketing Workspace
+  useEffect(() => {
+    if (activeTab === 'workbook') {
+      setIsSidebarOpen(true);
+    }
+  }, [activeTab]);
+
   // Root Cause & Problem Management States
   const [problemRecords, setProblemRecords] = useState<any[]>(() => {
     const saved = localStorage.getItem('sflow_problem_records');
