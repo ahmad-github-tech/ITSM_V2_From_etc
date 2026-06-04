@@ -2628,7 +2628,7 @@ Signatures Registered:
     let riskLow = 0;
     let activeOpenCount = 0;
 
-    currentTasks.forEach(t => {
+    distributionTasks.forEach(t => {
       const nowString = now.toISOString();
       const sla = getTaskSlaTimes(t, nowString);
 
@@ -2775,7 +2775,7 @@ Signatures Registered:
         breachRiskBorder
       }
     };
-  }, [projectAndRangeFilteredTasks, projectConfigs, users]);
+  }, [projectAndRangeFilteredTasks, projectFilteredTasks, trendPeriod, customStartDate, customEndDate, projectConfigs, users]);
 
   // --- Change & Release Management Logic ---
   const handleOpenCreateRelease = () => {
@@ -4170,7 +4170,7 @@ Guidelines:
       setIsExporting(true); // Disable entry animations for clean capture
       
       // Wait for workbook to switch, layout elements to expand, and charts to fully render statically
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Capture charts from active dashboard/analytics views
       let chartImages: string[] = [];
@@ -6890,7 +6890,7 @@ Guidelines:
                                     title="Click to view and edit active Hold tickets"
                                   >
                                     <span className="text-[9px] uppercase font-bold tracking-tight">Hold:</span>
-                                    <span className="font-extrabold text-[10px] text-white">{projectFilteredTasks.filter(t => t.status === 'Hold').length}</span>
+                                    <span className="font-extrabold text-[10px] text-white">{projectAndRangeFilteredTasks.filter(t => t.status === 'Hold').length}</span>
                                   </button>
                                   <button
                                     onClick={() => setMetricsDrilldownStatus('In-Progress')}
@@ -6898,7 +6898,7 @@ Guidelines:
                                     title="Click to view and edit active In-Progress tickets"
                                   >
                                     <span className="text-[9px] uppercase font-bold tracking-tight">In-Prog:</span>
-                                    <span className="font-extrabold text-[10px] text-white">{projectFilteredTasks.filter(t => t.status === 'In-Progress').length}</span>
+                                    <span className="font-extrabold text-[10px] text-white">{projectAndRangeFilteredTasks.filter(t => t.status === 'In-Progress').length}</span>
                                   </button>
                                 </div>
                               </div>
@@ -7030,7 +7030,7 @@ Guidelines:
                                       title="Click to drill down into P1 Critical metrics"
                                     >
                                       <p className="text-[8px] font-black text-rose-400 font-mono">P1</p>
-                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P1').length}</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectAndRangeFilteredTasks.filter(t => t.priority === 'P1').length}</p>
                                     </button>
                                     <button 
                                       onClick={() => setMetricsDrilldownStatus('P2')}
@@ -7038,7 +7038,7 @@ Guidelines:
                                       title="Click to drill down into P2 High metrics"
                                     >
                                       <p className="text-[8px] font-black text-orange-400 font-mono">P2</p>
-                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P2').length}</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectAndRangeFilteredTasks.filter(t => t.priority === 'P2').length}</p>
                                     </button>
                                     <button 
                                       onClick={() => setMetricsDrilldownStatus('P3')}
@@ -7046,7 +7046,7 @@ Guidelines:
                                       title="Click to drill down into P3 Medium metrics"
                                     >
                                       <p className="text-[8px] font-black text-amber-400 font-mono">P3</p>
-                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P3').length}</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectAndRangeFilteredTasks.filter(t => t.priority === 'P3').length}</p>
                                     </button>
                                     <button 
                                       onClick={() => setMetricsDrilldownStatus('P4')}
@@ -7054,16 +7054,16 @@ Guidelines:
                                       title="Click to drill down into P4 Standard metrics"
                                     >
                                       <p className="text-[8px] font-black text-emerald-400 font-mono">P4</p>
-                                      <p className="text-xs font-black text-white mt-0.5">{projectFilteredTasks.filter(t => t.priority === 'P4').length}</p>
+                                      <p className="text-xs font-black text-white mt-0.5">{projectAndRangeFilteredTasks.filter(t => t.priority === 'P4').length}</p>
                                     </button>
                                   </div>
                                 </div>
                                 <button 
                                   onClick={() => setMetricsDrilldownStatus('Resolved')}
-                                  className="w-full text-right block mt-2 pt-1 border-t border-slate-900/40 cursor-pointer text-[8.5px] font-mono text-slate-500 hover:text-indigo-400 font-extrabold uppercase transition-colors"
+                                  className="w-full text-right block mt-2 pt-1 border-t border-slate-900/40 cursor-pointer text-[8.5px] font-mono text-slate-550 hover:text-indigo-400 font-extrabold uppercase transition-colors"
                                   title="Click to view all closed and resolved tickets list"
                                 >
-                                  {projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved').length} Resolved &rarr;
+                                  {projectAndRangeFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved').length} Resolved &rarr;
                                 </button>
                               </div>
                             </div>
@@ -11837,42 +11837,42 @@ Guidelines:
                 case 'Hold':
                   modalTitle = 'SLA Hold Incidents';
                   modalSubtitle = 'Operational review and hold suspension logs';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'Hold');
+                  drilldownTasksList = distributionTasks.filter(t => t.status === 'Hold');
                   break;
                 case 'In-Progress':
                   modalTitle = 'Active In-Progress Operations';
                   modalSubtitle = 'Command operations with live troubleshooting workflows';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'In-Progress');
+                  drilldownTasksList = distributionTasks.filter(t => t.status === 'In-Progress');
                   break;
                 case 'Backlog':
                   modalTitle = 'Active Operations Backlog';
                   modalSubtitle = 'Total outstanding workload yet to be resolved';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
+                  drilldownTasksList = distributionTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
                   break;
                 case 'P1':
                   modalTitle = 'P1 Critical Force Majeure';
                   modalSubtitle = 'Extreme severity incidents with active rapid-response teams';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P1');
+                  drilldownTasksList = distributionTasks.filter(t => t.priority === 'P1');
                   break;
                 case 'P2':
                   modalTitle = 'P2 High Operational Priority';
                   modalSubtitle = 'High priority load requiring immediate shift capacity';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P2');
+                  drilldownTasksList = distributionTasks.filter(t => t.priority === 'P2');
                   break;
                 case 'P3':
                   modalTitle = 'P3 Medium Service Load';
                   modalSubtitle = 'Standard operational queries under response buffer timelines';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P3');
+                  drilldownTasksList = distributionTasks.filter(t => t.priority === 'P3');
                   break;
                 case 'P4':
                   modalTitle = 'P4 Standard Incidents';
                   modalSubtitle = 'Routine operational tasks with low-urgency thresholds';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.priority === 'P4');
+                  drilldownTasksList = distributionTasks.filter(t => t.priority === 'P4');
                   break;
                 case 'Resolved':
                   modalTitle = 'Resolved / Closed Service Ledger';
                   modalSubtitle = 'Ledger of successfully completed actions and SLA metrics';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved');
+                  drilldownTasksList = distributionTasks.filter(t => t.status === 'Closed' || t.status === 'Resolved');
                   break;
                 case 'ResponseSLA':
                   modalTitle = 'Response SLA Diagnostics';
@@ -11897,7 +11897,7 @@ Guidelines:
                 case 'RiskCritical':
                   modalTitle = 'Critical Threat / Breached Risks';
                   modalSubtitle = 'Active backlog items that have officially breached resolution windows';
-                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                  drilldownTasksList = distributionTasks.filter(t => {
                     const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
                     return isOpen && getTaskSlaTimes(t, nowStr).isResolutionBreached;
                   });
@@ -11905,7 +11905,7 @@ Guidelines:
                 case 'RiskHigh':
                   modalTitle = 'High Threat Breach Risks (>80%)';
                   modalSubtitle = 'Active backlog items with above 80% SLA limits consumed';
-                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                  drilldownTasksList = distributionTasks.filter(t => {
                     const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
                     if (!isOpen) return false;
                     const sla = getTaskSlaTimes(t, nowStr);
@@ -11917,7 +11917,7 @@ Guidelines:
                 case 'RiskMedium':
                   modalTitle = 'Medium Threat Breach Risks (50%-80%)';
                   modalSubtitle = 'Active items with 50% to 80% SLA limits consumed';
-                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                  drilldownTasksList = distributionTasks.filter(t => {
                     const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
                     if (!isOpen) return false;
                     const sla = getTaskSlaTimes(t, nowStr);
@@ -11929,7 +11929,7 @@ Guidelines:
                 case 'RiskLow':
                   modalTitle = 'Low Threat Risks / Stable';
                   modalSubtitle = 'Active items with below 50% SLA memory consumed';
-                  drilldownTasksList = projectFilteredTasks.filter(t => {
+                  drilldownTasksList = distributionTasks.filter(t => {
                     const isOpen = t.status !== 'Closed' && t.status !== 'Resolved';
                     if (!isOpen) return false;
                     const sla = getTaskSlaTimes(t, nowStr);
@@ -11941,7 +11941,7 @@ Guidelines:
                 default:
                   modalTitle = `${metricsDrilldownStatus} Telemetry`;
                   modalSubtitle = 'Operational telemetry filter view';
-                  drilldownTasksList = projectFilteredTasks.filter(t => t.status === metricsDrilldownStatus);
+                  drilldownTasksList = distributionTasks.filter(t => t.status === metricsDrilldownStatus);
                   break;
               }
 
