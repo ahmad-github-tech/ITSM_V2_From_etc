@@ -7733,30 +7733,6 @@ Guidelines:
                               })}
                               <td className="px-4 py-4 text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  {(() => {
-                                    const targetKey = 'sflow_attachments_' + task.ticketId;
-                                    const listStr = localStorage.getItem(targetKey);
-                                    let count = 0;
-                                    if (listStr) {
-                                      try {
-                                        count = JSON.parse(listStr).length;
-                                      } catch (e) {}
-                                    }
-                                    return (
-                                      <button 
-                                        onClick={() => setAttachmentTask(task)}
-                                        className={cn(
-                                          "p-1.5 rounded transition-all flex items-center justify-center border",
-                                          count > 0 
-                                            ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30 hover:border-rose-400 scale-105" 
-                                            : "bg-slate-900 hover:bg-slate-800 text-slate-500 hover:text-slate-300 border-slate-800/80 hover:border-slate-700 hidden group-hover:flex"
-                                        )}
-                                        title={count > 0 ? `${count} active attachments. Click to inspect, download, or upload documents.` : "Attach files & documents"}
-                                      >
-                                        <Paperclip className="w-3.5 h-3.5" />
-                                      </button>
-                                    );
-                                  })()}
                                   <button 
                                     onClick={() => setAuditTask(task)}
                                     className="p-1.5 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-400 rounded transition-all opacity-0 group-hover:opacity-100"
@@ -12955,22 +12931,6 @@ Guidelines:
                              </div>
                           </div>
                        </div>
-                    </div>
-
-                    {/* Visual notice about attachments separation */}
-                    <div className="space-y-4 pt-6 border-t border-slate-800/60 font-sans">
-                      <div className="flex items-center justify-between p-4 bg-slate-950/20 rounded-2xl border border-slate-800/40">
-                        <div className="flex items-center gap-2.5">
-                          <Paperclip className="w-4 h-4 text-rose-400" />
-                          <div>
-                            <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-wider">Independent Case Attachments Workspace</h4>
-                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Manage, upload, and smart-view native case files directly from the workbook list row</p>
-                          </div>
-                        </div>
-                        <span className="text-[9px] font-mono text-slate-400/80 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 uppercase font-black tracking-widest">
-                          WORKSPACE ROUTED
-                        </span>
-                      </div>
                     </div>
 
                     {/* Timeline Log Section */}
