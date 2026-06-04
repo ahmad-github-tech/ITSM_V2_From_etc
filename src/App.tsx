@@ -143,6 +143,7 @@ export default function App() {
   const [tasks, setTasks] = useState<SupportTask[]>([]);
   const [projectsDB, setProjectsDB] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [categoryMappings, setCategoryMappings] = useState<{ id: number, category: string, subcategory: string }[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -4081,7 +4082,7 @@ Guidelines:
 
   const handleExport = async (formatType: 'excel' | 'pdf') => {
     setIsExportDropdownOpen(false);
-    const currentTasks = projectFilteredTasks;
+    const currentTasks = projectAndRangeFilteredTasks;
     
     // 1. Data Sheet (Tickets)
     const ticketData = currentTasks.map(t => {
@@ -4126,7 +4127,7 @@ Guidelines:
 
     const analyticsData = [
       { Metric: 'Total Tickets Managed', Value: currentTasks.length },
-      { Metric: 'Active / Open Backlog', Value: kpis.active },
+      { Metric: 'Active / Open Backlog', Value: currentTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved').length },
       { Metric: 'Global SLA Compliance Rate', Value: `${slaRate.toFixed(2)}%` },
       { Metric: 'Notification Compliance', Value: `${kpis.compliance}%` },
       { Metric: 'Mean Time to Respond (MTTR)', Value: formatDuration(kpis.mttrResp * 60000) },
@@ -4137,8 +4138,15 @@ Guidelines:
       }))
     ];
 
+    // 3. Trend Analysis Sheet (for explicit Trend Analysis Data)
+    const trendAnalysisData = (charts.trendData || []).map(point => ({
+      'Time/Date Segment': point.name,
+      'Resolved Tickets Count': point.closures,
+    }));
+
     const sheets = [
       { name: 'SLA_Analytics', data: analyticsData },
+      { name: 'Trend_Analysis', data: trendAnalysisData },
       { name: 'Ticket_Inventory', data: ticketData }
     ];
 
@@ -4147,20 +4155,24 @@ Guidelines:
     if (formatType === 'excel') {
       exportToExcel(sheets, `${filenamePrefix}.xlsx`);
     } else {
-      // Ensure we are in workbook and inline analytics is open to capture charts
+      // Ensure we are in workbook and both inline operational hub dashboard and analytics are open to capture all graphs
       const originalTab = activeTab;
       const originalAnalyticsOpen = isInlineAnalyticsOpen;
+      const originalDashboardOpen = isInlineDashboardOpen;
+      const originalSubView = analyticsSubView;
       
       if (activeTab !== 'workbook') {
         setActiveTab('workbook');
       }
-      if (!isInlineAnalyticsOpen) {
-        setIsInlineAnalyticsOpen(true);
-        // Wait for workbook to switch and charts to mount/animate
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
+      setIsInlineAnalyticsOpen(true);
+      setIsInlineDashboardOpen(true);
+      setAnalyticsSubView('system');
+      setIsExporting(true); // Disable entry animations for clean capture
+      
+      // Wait for workbook to switch, layout elements to expand, and charts to fully render statically
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Capture charts
+      // Capture charts from active dashboard/analytics views
       let chartImages: string[] = [];
       window.scrollTo(0, 0);
       const chartElements = document.querySelectorAll('.report-chart');
@@ -4188,13 +4200,14 @@ Guidelines:
         setLoading(false);
       }
 
-      // Revert to original layout state if needed
+      // Revert to original user layout state cleanly without any side effects
       if (activeTab !== originalTab) {
         setActiveTab(originalTab);
       }
-      if (isInlineAnalyticsOpen !== originalAnalyticsOpen) {
-        setIsInlineAnalyticsOpen(originalAnalyticsOpen);
-      }
+      setIsInlineAnalyticsOpen(originalAnalyticsOpen);
+      setIsInlineDashboardOpen(originalDashboardOpen);
+      setAnalyticsSubView(originalSubView);
+      setIsExporting(false);
 
       let dateRangeStr = '';
       if (trendPeriod === 'custom') {
@@ -6336,7 +6349,7 @@ Guidelines:
                         contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                         itemStyle={{ color: chartColors.tooltipText }}
                       />
-                      <Line type="monotone" dataKey="closures" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', stroke: chartColors.tooltipBg, strokeWidth: 2 }} />
+                      <Line isAnimationActive={!isExporting} type="monotone" dataKey="closures" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', stroke: chartColors.tooltipBg, strokeWidth: 2 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -6351,6 +6364,7 @@ Guidelines:
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
+                              isAnimationActive={!isExporting}
                               data={charts.priorityData}
                               innerRadius={45}
                               outerRadius={65}
@@ -6422,7 +6436,7 @@ Guidelines:
                           contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                           itemStyle={{ color: chartColors.tooltipText }}
                         />
-                        <Bar dataKey="hours" radius={[0, 4, 4, 0]} fill="#818cf8" label={{ position: 'right', fill: chartColors.text, fontSize: 10 }} />
+                        <Bar isAnimationActive={!isExporting} dataKey="hours" radius={[0, 4, 4, 0]} fill="#818cf8" label={{ position: 'right', fill: chartColors.text, fontSize: 10 }} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -6477,7 +6491,7 @@ Guidelines:
                           contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                           itemStyle={{ color: chartColors.tooltipText }}
                         />
-                        <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        <Bar isAnimationActive={!isExporting} dataKey="count" radius={[4, 4, 0, 0]}>
                           {charts.agingData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
@@ -6622,10 +6636,10 @@ Guidelines:
                                   itemStyle={{ color: chartColors.tooltipText }}
                                 />
                                 <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: 10, textTransform: 'uppercase', fontWeight: 'bold' }} />
-                                <Bar dataKey="p1Hours" name="P1 (Hours)" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
-                                <Bar dataKey="p2Hours" name="P2 (Hours)" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
-                                <Bar dataKey="p3Hours" name="P3 (Hours)" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
-                                <Bar dataKey="p4Hours" name="P4 (Hours)" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                                <Bar isAnimationActive={!isExporting} dataKey="p1Hours" name="P1 (Hours)" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                                <Bar isAnimationActive={!isExporting} dataKey="p2Hours" name="P2 (Hours)" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
+                                <Bar isAnimationActive={!isExporting} dataKey="p3Hours" name="P3 (Hours)" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                                <Bar isAnimationActive={!isExporting} dataKey="p4Hours" name="P4 (Hours)" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} />
                               </BarChart>
                             </ResponsiveContainer>
                           );
@@ -7128,7 +7142,7 @@ Guidelines:
                                             contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                                             itemStyle={{ color: chartColors.tooltipText }}
                                           />
-                                          <Line type="monotone" dataKey="closures" name="Closed Tickets" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#3b82f6', stroke: chartColors.tooltipBg, strokeWidth: 1.5 }} />
+                                          <Line isAnimationActive={!isExporting} type="monotone" dataKey="closures" name="Closed Tickets" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#3b82f6', stroke: chartColors.tooltipBg, strokeWidth: 1.5 }} />
                                         </LineChart>
                                       </ResponsiveContainer>
                                     </div>
@@ -7143,6 +7157,7 @@ Guidelines:
                                         <ResponsiveContainer width="100%" height="100%">
                                           <PieChart>
                                             <Pie
+                                              isAnimationActive={!isExporting}
                                               data={charts.priorityData}
                                               innerRadius={30}
                                               outerRadius={45}
@@ -7212,7 +7227,7 @@ Guidelines:
                                             contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                                             itemStyle={{ color: chartColors.tooltipText }}
                                           />
-                                          <Bar dataKey="hours" radius={[0, 2, 2, 0]} fill="#818cf8" />
+                                          <Bar isAnimationActive={!isExporting} dataKey="hours" radius={[0, 2, 2, 0]} fill="#818cf8" />
                                         </BarChart>
                                       </ResponsiveContainer>
                                     </div>
@@ -7239,7 +7254,7 @@ Guidelines:
                                             contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                                             itemStyle={{ color: chartColors.tooltipText }}
                                           />
-                                          <Bar dataKey="count" radius={[2, 2, 0, 0]}>
+                                          <Bar isAnimationActive={!isExporting} dataKey="count" radius={[2, 2, 0, 0]}>
                                             {charts.agingData.map((entry, index) => (
                                               <Cell key={`cell-${index}`} fill={entry.color} />
                                             ))}
@@ -7332,10 +7347,10 @@ Guidelines:
                                               contentStyle={{ backgroundColor: chartColors.tooltipBg, border: `1px solid ${chartColors.tooltipBorder}`, borderRadius: '12px' }}
                                               itemStyle={{ color: chartColors.tooltipText }}
                                             />
-                                            <Bar dataKey="p1Hours" name="P1" stackId="a" fill="#ef4444" />
-                                            <Bar dataKey="p2Hours" name="P2" stackId="a" fill="#f97316" />
-                                            <Bar dataKey="p3Hours" name="P3" stackId="a" fill="#3b82f6" />
-                                            <Bar dataKey="p4Hours" name="P4" stackId="a" fill="#22c55e" />
+                                            <Bar isAnimationActive={!isExporting} dataKey="p1Hours" name="P1" stackId="a" fill="#ef4444" />
+                                            <Bar isAnimationActive={!isExporting} dataKey="p2Hours" name="P2" stackId="a" fill="#f97316" />
+                                            <Bar isAnimationActive={!isExporting} dataKey="p3Hours" name="P3" stackId="a" fill="#3b82f6" />
+                                            <Bar isAnimationActive={!isExporting} dataKey="p4Hours" name="P4" stackId="a" fill="#22c55e" />
                                           </BarChart>
                                         </ResponsiveContainer>
                                       );
