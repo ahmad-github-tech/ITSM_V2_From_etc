@@ -2225,9 +2225,41 @@ Signatures Registered:
     });
   }, [tasks, selectedProject, selectedEmployee, userMappedProjects, isManagerOrAdmin]);
 
+  // --- New: Project and Range Filtered Tasks ---
+  const projectAndRangeFilteredTasks = useMemo(() => {
+    const now = new Date();
+    let periodStart: Date;
+    let periodEnd = now;
+
+    if (trendPeriod === 'daily') {
+      periodStart = startOfDay(now);
+    } else if (trendPeriod === 'weekly') {
+      periodStart = subDays(now, 7);
+    } else if (trendPeriod === 'monthly') {
+      periodStart = subDays(now, 30);
+    } else if (trendPeriod === 'quarterly') {
+      periodStart = subDays(now, 91);
+    } else {
+      const s = parseISO(customStartDate);
+      const e = parseISO(customEndDate);
+      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
+        periodStart = new Date(0);
+        periodEnd = new Date(0);
+      } else {
+        periodStart = startOfDay(s);
+        periodEnd = endOfDay(e);
+      }
+    }
+
+    return projectFilteredTasks.filter(t => {
+      const genDate = parseISO(t.generationDate);
+      return genDate >= periodStart && genDate <= periodEnd;
+    });
+  }, [projectFilteredTasks, trendPeriod, customStartDate, customEndDate]);
+
   // --- KPI Calculations ---
   const kpis = useMemo(() => {
-    const currentTasks = projectFilteredTasks;
+    const currentTasks = projectAndRangeFilteredTasks;
     const closedTasks = currentTasks.filter(t => t.closureDate && (t.status === 'Closed' || t.status === 'Resolved'));
     
     const mttrResp = currentTasks.reduce((acc, t) => {
@@ -2251,15 +2283,15 @@ Signatures Registered:
       total: currentTasks.length,
       active: currentTasks.filter(t => t.status !== 'Closed').length
     };
-  }, [projectFilteredTasks, projectConfigs]);
+  }, [projectAndRangeFilteredTasks, projectConfigs]);
 
   const predictiveMetrics = useMemo(() => {
-    const distinctProjects = Array.from(new Set(tasks.map(t => t.projectId)));
+    const distinctProjects = Array.from(new Set(projectFilteredTasks.map(t => t.projectId)));
     const heatmapProjects = distinctProjects.length > 0 ? distinctProjects : ['HR-Portal', 'Salesforce-Sync', 'Financials'];
     const priorities: Priority[] = ['P1', 'P2', 'P3', 'P4'];
 
     const heatmapData = heatmapProjects.map(projId => {
-      const projTasks = tasks.filter(t => t.projectId === projId);
+      const projTasks = projectAndRangeFilteredTasks.filter(t => t.projectId === projId);
       const priorityCells = priorities.map(pri => {
         const cellTasks = projTasks.filter(t => t.priority === pri);
         if (cellTasks.length === 0) {
@@ -2293,7 +2325,7 @@ Signatures Registered:
     });
 
     const projectCongestion = heatmapProjects.map(projId => {
-      const projTasks = tasks.filter(t => t.projectId === projId);
+      const projTasks = projectAndRangeFilteredTasks.filter(t => t.projectId === projId);
       const activeTasks = projTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
       const unresolvedP1 = activeTasks.filter(t => t.priority === 'P1').length;
       
@@ -2326,9 +2358,9 @@ Signatures Registered:
       };
     }).sort((a, b) => b.score - a.score);
 
-    const activeResources = Array.from(new Set(tasks.map(t => t.assignedTo).filter(Boolean))) as string[];
+    const activeResources = Array.from(new Set(projectAndRangeFilteredTasks.map(t => t.assignedTo).filter(Boolean))) as string[];
     const resourceOverloads = activeResources.map(resName => {
-      const resTasks = tasks.filter(t => t.assignedTo === resName);
+      const resTasks = projectAndRangeFilteredTasks.filter(t => t.assignedTo === resName);
       const activeTasks = resTasks.filter(t => t.status !== 'Closed' && t.status !== 'Resolved');
       const unresolvedP1 = activeTasks.filter(t => t.priority === 'P1').length;
       
@@ -2359,7 +2391,7 @@ Signatures Registered:
       };
     }).filter(r => r.activeTasksCount > 0).sort((a, b) => b.score - a.score);
 
-    const nearBreaches = tasks
+    const nearBreaches = projectAndRangeFilteredTasks
       .filter(t => t.status !== 'Closed' && t.status !== 'Resolved')
       .map(t => {
         const sla = getTaskSlaTimes(t, new Date().toISOString());
@@ -2388,7 +2420,7 @@ Signatures Registered:
       resourceOverloads,
       nearBreaches
     };
-  }, [tasks, projectConfigs]);
+  }, [projectFilteredTasks, projectAndRangeFilteredTasks, projectConfigs]);
 
   const currentConfig = projectConfigs.find(c => c.projectId === configSelectedProject);
   const configPIndex = projectConfigs.findIndex(c => c.projectId === configSelectedProject);
@@ -2402,36 +2434,8 @@ Signatures Registered:
   // --- Chart Data ---
   const charts = useMemo(() => {
     const currentTasks = projectFilteredTasks;
-
-    // Filter tasks based on trendPeriod for Distribution charts
+    const distributionTasks = projectAndRangeFilteredTasks;
     const now = new Date();
-    let periodStart: Date;
-    let periodEnd = now;
-
-    if (trendPeriod === 'daily') {
-      periodStart = startOfDay(now);
-    } else if (trendPeriod === 'weekly') {
-      periodStart = subDays(now, 7);
-    } else if (trendPeriod === 'monthly') {
-      periodStart = subDays(now, 30);
-    } else if (trendPeriod === 'quarterly') {
-      periodStart = subDays(now, 91);
-    } else {
-      const s = parseISO(customStartDate);
-      const e = parseISO(customEndDate);
-      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
-        periodStart = new Date(0);
-        periodEnd = new Date(0);
-      } else {
-        periodStart = startOfDay(s);
-        periodEnd = endOfDay(e);
-      }
-    }
-
-    const distributionTasks = currentTasks.filter(t => {
-      const genDate = parseISO(t.generationDate);
-      return genDate >= periodStart && genDate <= periodEnd;
-    });
 
     // Priority Pie
     const priorityData = Object.keys(PRIORITY_COLORS).map(p => ({
@@ -2770,7 +2774,7 @@ Signatures Registered:
         breachRiskBorder
       }
     };
-  }, [projectFilteredTasks, trendPeriod, customStartDate, customEndDate, projectConfigs, users]);
+  }, [projectAndRangeFilteredTasks, projectConfigs, users]);
 
   // --- Change & Release Management Logic ---
   const handleOpenCreateRelease = () => {
@@ -4203,37 +4207,7 @@ Guidelines:
     }
   };
 
-  const filteredTasks = projectFilteredTasks.filter(t => {
-    // 0. Filter by time window/period selection matching trendPeriod
-    const now = new Date();
-    let periodStart: Date;
-    let periodEnd = now;
-
-    if (trendPeriod === 'daily') {
-      periodStart = startOfDay(now);
-    } else if (trendPeriod === 'weekly') {
-      periodStart = subDays(now, 7);
-    } else if (trendPeriod === 'monthly') {
-      periodStart = subDays(now, 30);
-    } else if (trendPeriod === 'quarterly') {
-      periodStart = subDays(now, 91);
-    } else {
-      const s = parseISO(customStartDate);
-      const e = parseISO(customEndDate);
-      if (isNaN(s.getTime()) || isNaN(e.getTime())) {
-        periodStart = new Date(0);
-        periodEnd = new Date(0);
-      } else {
-        periodStart = startOfDay(s);
-        periodEnd = endOfDay(e);
-      }
-    }
-
-    const genDate = parseISO(t.generationDate);
-    if (genDate < periodStart || genDate > periodEnd) {
-      return false;
-    }
-
+  const filteredTasks = projectAndRangeFilteredTasks.filter(t => {
     // 1. Search query match
     const query = (searchQuery || '').toLowerCase();
     let matchQuery = true;
