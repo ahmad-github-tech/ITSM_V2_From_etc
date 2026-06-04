@@ -5018,6 +5018,45 @@ Guidelines:
     }, 100);
   };
 
+  const scrollToPredictiveSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleQciClick = (projId: string) => {
+    setSelectedProject(projId);
+    setSelectedEmployee('All');
+    setFilterPriority('All');
+    setFilterStatus('All');
+    setActiveTab('workbook');
+    setTimeout(() => {
+      const element = document.getElementById('work-orders-table-section') || document.getElementById('main-workbook-panel') || document.getElementById('workbook-tab-container');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: window.innerHeight * 1.1, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  const handleSpecialistClick = (specialistName: string) => {
+    setSelectedEmployee(specialistName);
+    setSelectedProject('All');
+    setFilterPriority('All');
+    setFilterStatus('All');
+    setActiveTab('workbook');
+    setTimeout(() => {
+      const element = document.getElementById('work-orders-table-section') || document.getElementById('main-workbook-panel') || document.getElementById('workbook-tab-container');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: window.innerHeight * 1.1, behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const handleDrilldown = (type: string, param?: any) => {
     const nowStr = new Date().toISOString();
     let filteredList: SupportTask[] = [];
@@ -7334,7 +7373,11 @@ Guidelines:
                               <div className="space-y-4 select-text">
                                 {/* Top mini-KPI KPI counters */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                  <div 
+                                    onClick={() => scrollToPredictiveSection('queue-congestion-index-section')}
+                                    className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between cursor-pointer hover:bg-slate-900/80 hover:border-rose-500/40 transition-all active:scale-[0.98]"
+                                    title="Click to jump to Queue Congestion Index details"
+                                  >
                                     <div>
                                       <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Service Bottlenecks</span>
                                       <h4 className="text-sm font-black text-rose-400 font-mono mt-0.5">
@@ -7344,7 +7387,11 @@ Guidelines:
                                     <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                                   </div>
 
-                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                  <div 
+                                    onClick={() => scrollToPredictiveSection('sla-warning-radar-section')}
+                                    className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between cursor-pointer hover:bg-slate-900/80 hover:border-amber-500/40 transition-all active:scale-[0.98]"
+                                    title="Click to jump to SLA Warning Radar details"
+                                  >
                                     <div>
                                       <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Risk Staging Radar</span>
                                       <h4 className="text-sm font-black text-amber-400 font-mono mt-0.5">
@@ -7354,7 +7401,11 @@ Guidelines:
                                     <Clock className="w-4 h-4 text-amber-500 shrink-0 animate-pulse" />
                                   </div>
 
-                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                  <div 
+                                    onClick={() => scrollToPredictiveSection('specialist-fatigue-monitor-section')}
+                                    className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between cursor-pointer hover:bg-slate-900/80 hover:border-indigo-500/40 transition-all active:scale-[0.98]"
+                                    title="Click to jump to Specialist Allocation &amp; Fatigue details"
+                                  >
                                     <div>
                                       <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Resource Saturation</span>
                                       <h4 className="text-sm font-black text-indigo-400 font-mono mt-0.5">
@@ -7364,7 +7415,11 @@ Guidelines:
                                     <Users className="w-4 h-4 text-indigo-400 shrink-0" />
                                   </div>
 
-                                  <div className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between">
+                                  <div 
+                                    onClick={() => scrollToPredictiveSection('sla-heatmap-matrix-section')}
+                                    className="bg-slate-950/60 p-3.5 rounded-xl border border-slate-850 flex items-center justify-between cursor-pointer hover:bg-slate-900/80 hover:border-emerald-500/40 transition-all active:scale-[0.98]"
+                                    title="Click to jump to Interactive Heatmap matrix"
+                                  >
                                     <div>
                                       <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500">Dynamic SLA Rate</span>
                                       <h4 className="text-sm font-black text-emerald-400 font-mono mt-0.5">
@@ -7389,7 +7444,7 @@ Guidelines:
 
                                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                                   {/* Left: SLA Interactive Heatmap Grid (8 Columns span) */}
-                                  <div className="lg:col-span-7 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
+                                  <div id="sla-heatmap-matrix-section" className="lg:col-span-7 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
                                     <div>
                                       <div className="flex items-center justify-between mb-3">
                                         <div>
@@ -7488,7 +7543,7 @@ Guidelines:
                                   </div>
 
                                   {/* Right: Operational Queue Congestion indices (5 columns span) */}
-                                  <div className="lg:col-span-5 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
+                                  <div id="queue-congestion-index-section" className="lg:col-span-5 bg-slate-950/40 border border-slate-850/80 rounded-xl p-5 flex flex-col justify-between">
                                     <div>
                                       <h3 className="text-[10px] m-0 font-extrabold uppercase tracking-widest text-slate-400 mb-0.5">
                                         Queue Congestion Index (QCI)
@@ -7503,10 +7558,15 @@ Guidelines:
                                           const isMedium = item.riskLevel === 'MEDIUM';
 
                                           return (
-                                            <div key={item.projectId} className="bg-slate-950/60 rounded-lg p-2.5 border border-slate-850/60 flex items-center justify-between">
+                                            <div 
+                                              key={item.projectId} 
+                                              onClick={() => handleQciClick(item.projectId)}
+                                              className="bg-slate-950/60 rounded-lg p-2.5 border border-slate-850/60 flex items-center justify-between cursor-pointer hover:bg-slate-900 hover:border-slate-700/60 transition-all duration-200 active:scale-[0.98] group"
+                                              title={`Filter workbook by Project ${item.projectId} instantly`}
+                                            >
                                               <div className="flex-1 min-w-0 pr-3">
                                                 <div className="flex items-center gap-1.5">
-                                                  <span className="font-extrabold text-[11px] text-slate-200 truncate">{item.projectId}</span>
+                                                  <span className="font-extrabold text-[11px] text-slate-200 truncate group-hover:text-indigo-400 transition-colors">{item.projectId}</span>
                                                   <span className={cn(
                                                     "text-[7px] px-1 rounded uppercase font-black tracking-widest",
                                                     isCritical ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" : 
@@ -7550,7 +7610,7 @@ Guidelines:
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Bottom Left: SLA Warning Radar Near Breaches */}
-                                  <div className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
+                                  <div id="sla-warning-radar-section" className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
                                     <div className="flex items-center gap-2 mb-3">
                                       <Brain className="w-4 h-4 text-amber-400 animate-pulse-slow" />
                                       <div>
@@ -7619,13 +7679,36 @@ Guidelines:
                                                   </div>
                                                 </div>
 
-                                                <button 
-                                                  onClick={() => setEditingTask(item.task)}
-                                                  className="shrink-0 bg-indigo-600 border border-indigo-500/50 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                                                >
-                                                  <Wrench className="w-2.5 h-2.5 text-indigo-200" />
-                                                  Intervene &amp; Route
-                                                </button>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                  <button
+                                                    onClick={() => {
+                                                      setSelectedProject(item.task.projectId);
+                                                      setSearchQuery(item.task.ticketId || item.task.id);
+                                                      setFilterPriority('All');
+                                                      setFilterStatus('All');
+                                                      setActiveTab('workbook');
+                                                      setTimeout(() => {
+                                                        const element = document.getElementById('work-orders-table-section') || document.getElementById('main-workbook-panel') || document.getElementById('workbook-tab-container');
+                                                        if (element) {
+                                                          element.scrollIntoView({ behavior: 'smooth' });
+                                                        } else {
+                                                          window.scrollTo({ top: window.innerHeight * 1.1, behavior: 'smooth' });
+                                                        }
+                                                      }, 100);
+                                                    }}
+                                                    className="bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-850 text-slate-300 font-black text-[9px] uppercase tracking-wider px-2 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                                    title="Locate and focus this ticket in workbook list"
+                                                  >
+                                                    Locate
+                                                  </button>
+                                                  <button 
+                                                    onClick={() => setEditingTask(item.task)}
+                                                    className="bg-indigo-600 border border-indigo-500/50 hover:bg-indigo-500 text-white font-black text-[9px] uppercase tracking-wider px-2.5 py-1.5 rounded transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                                  >
+                                                    <Wrench className="w-2.5 h-2.5 text-indigo-200" />
+                                                    Intervene
+                                                  </button>
+                                                </div>
                                               </div>
                                             </div>
                                           );
@@ -7635,7 +7718,7 @@ Guidelines:
                                   </div>
 
                                   {/* Bottom Right: Team Capacity load and fatigue fatigue indicators */}
-                                  <div className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
+                                  <div id="specialist-fatigue-monitor-section" className="bg-slate-950/40 border border-slate-850/80 rounded-xl p-5">
                                     <div className="flex items-center gap-2 mb-3">
                                       <Users className="w-4 h-4 text-indigo-400" />
                                       <div>
@@ -7655,9 +7738,14 @@ Guidelines:
                                         </div>
                                       ) : (
                                         predictiveMetrics.resourceOverloads.map(res => (
-                                          <div key={res.name} className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-850/60 flex items-center justify-between">
+                                          <div 
+                                            key={res.name} 
+                                            onClick={() => handleSpecialistClick(res.name)}
+                                            className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-850/60 flex items-center justify-between cursor-pointer hover:bg-slate-900 hover:border-slate-700/60 transition-all duration-200 active:scale-[0.98] group"
+                                            title={`Filter workbook by specialist ${res.name} instantly`}
+                                          >
                                             <div className="flex-grow min-w-0 pr-3">
-                                              <span className="font-extrabold text-[11px] text-slate-200 block truncate">{res.name}</span>
+                                              <span className="font-extrabold text-[11px] text-slate-200 block truncate group-hover:text-indigo-400 transition-colors">{res.name}</span>
                                               <div className="flex items-center gap-1.5 mt-0.5 text-[8px] font-black uppercase text-slate-500">
                                                 <span>Active workload backlog: <span className="text-indigo-400 text-[9px] font-mono">{res.activeTasksCount}</span></span>
                                                 {res.unresolvedP1 > 0 && (
@@ -7671,7 +7759,7 @@ Guidelines:
                                             <div className="text-right shrink-0">
                                               <span className={cn(
                                                 "text-[9px] font-black tracking-widest uppercase block px-1.5 py-0.5 rounded border leading-none font-mono",
-                                                res.danger ? "bg-red-500/10 text-red-400 border-red-500/20" : 
+                                                res.danger ? "bg-red-500/10 text-red-400 border-red-500/20 shadow-sm shadow-red-500/10" : 
                                                 res.score >= 3 ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
                                                 "bg-slate-900 text-slate-400 border-slate-800"
                                               )}>
