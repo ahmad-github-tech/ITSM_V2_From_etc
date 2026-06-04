@@ -5539,10 +5539,10 @@ Guidelines:
           </div>
         )}
         {/* Top Header / Command Bar */}
-        <header className="min-h-16 h-auto xl:h-16 py-3 xl:py-0 glass-panel border-b border-slate-800 px-4 sm:px-6 flex flex-col xl:flex-row items-center justify-between z-20 shrink-0 gap-3 xl:gap-0 font-sans">
+        <header className="h-16 glass-panel border-b border-slate-800 px-6 flex items-center justify-between z-20 shrink-0">
           
           {/* Left Portion: Brand Identity & Active Workspace Selector */}
-          <div className="flex flex-wrap items-center justify-between xl:justify-start gap-3 sm:gap-4 w-full xl:w-auto shrink-0">
+          <div className="flex items-center gap-4">
             
             {/* Permanent ITSM Branding */}
             <button
@@ -5575,7 +5575,7 @@ Guidelines:
               <button 
                 onClick={() => setIsUtilityDropdownOpen(!isUtilityDropdownOpen)}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800/80 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-inner h-9",
+                  "flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800/80 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shadow-inner",
                   ['workbook', 'knowledge-base', 'change-release', 'problem-management', 'asset-management'].includes(activeTab as string) ? "border-slate-700/80 text-white" : "text-slate-400 hover:text-slate-200"
                 )}
                 title="Switch active operational workspace"
@@ -5737,7 +5737,7 @@ Guidelines:
             {activeTab === 'workbook' && (
               <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-1.5 hover:bg-slate-800 hover:text-white rounded-lg border border-slate-800 transition-colors text-slate-400 cursor-pointer h-9 w-9 flex items-center justify-center shrink-0"
+                className="p-1.5 hover:bg-slate-800 hover:text-white rounded-lg border border-slate-800 transition-colors text-slate-400 cursor-pointer"
                 title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               >
                 <ChevronRight className={cn("w-4 h-4 transition-transform", isSidebarOpen ? "rotate-180" : "rotate-0")} />
@@ -5747,10 +5747,10 @@ Guidelines:
           </div>
 
           {/* Center-Right Scope Block: Global project & employee filters */}
-          <div className="flex flex-wrap items-center gap-2 bg-slate-950/60 rounded-xl p-1.5 border border-slate-850 w-full xl:w-auto justify-center md:justify-start max-w-full">
-            <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-2 shrink-0">Filter Scope:</span>
+          <div className="hidden xl:flex items-center gap-2 bg-slate-950/60 rounded-xl p-1 border border-slate-850">
+            <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-2">Filter Scope:</span>
              <select 
-                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-2.5 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7.5 cursor-pointer max-w-[130px] sm:max-w-none truncate"
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
                 value={selectedProject}
                 onChange={e => setSelectedProject(e.target.value)}
               >
@@ -5762,7 +5762,7 @@ Guidelines:
                   .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
               </select>
              <select 
-                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-2.5 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7.5 cursor-pointer max-w-[130px] sm:max-w-none truncate"
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
                 value={selectedEmployee}
                 onChange={e => setSelectedEmployee(e.target.value)}
               >
@@ -5778,11 +5778,11 @@ Guidelines:
                 ))}
               </select>
 
-              <div className="hidden sm:block w-[1px] h-4 bg-slate-800/80 mx-1 shrink-0" />
+              <div className="w-[1px] h-4 bg-slate-800/80 mx-1" />
 
-              <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-1 shrink-0">Range:</span>
+              <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest pl-1">Range:</span>
               <select 
-                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-2.5 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7.5 cursor-pointer"
+                className="bg-slate-900 text-xs font-bold text-slate-300 outline-none px-3 py-1 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors h-7 cursor-pointer"
                 value={trendPeriod}
                 onChange={e => setTrendPeriod(e.target.value as any)}
               >
@@ -5794,7 +5794,7 @@ Guidelines:
               </select>
 
               {trendPeriod === 'custom' && (
-                <div className="flex flex-wrap items-center gap-1.5 pl-1 shrink-0">
+                <div className="flex items-center gap-1 pl-1">
                   <input 
                     type="date" 
                     className="bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-[10px] text-white outline-none focus:ring-1 focus:ring-blue-500/50 font-mono h-[24px]"
@@ -5813,14 +5813,30 @@ Guidelines:
           </div>
 
           {/* Right portion: Views & Administration tabs */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-1.5 sm:gap-2.5 w-full xl:w-auto shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             
+            {/* If screen is not xl, show compact filters */}
+            <div className="flex xl:hidden items-center gap-1 bg-slate-950/60 rounded-lg p-0.5 border border-slate-850 shrink-0">
+               <select 
+                  className="bg-transparent text-[10px] font-black text-slate-400 outline-none px-2 rounded hover:text-white transition-colors h-6 cursor-pointer"
+                  value={selectedProject}
+                  onChange={e => setSelectedProject(e.target.value)}
+                >
+                  {(isManagerOrAdmin || userMappedProjects.length > 1) && (
+                    <option value="All">All Projs</option>
+                  )}
+                  {projectConfigs
+                     .filter(p => isManagerOrAdmin || userMappedProjects.includes(p.projectId))
+                     .map(p => <option key={p.projectId} value={p.projectId}>{p.projectId}</option>)}
+                </select>
+            </div>
+
             {isManagerOrAdmin && (
-              <div className="flex items-center gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800 shrink-0">
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-900/60 rounded-xl p-1 border border-slate-800 shrink-0">
                 <button 
                   onClick={() => setActiveTab('settings')}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap h-8",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                     activeTab === 'settings' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
                   )}
                   title="Configure Project Teams & Workspaces"
@@ -5832,7 +5848,7 @@ Guidelines:
                 <button 
                   onClick={() => setActiveTab('user-onboard')}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap h-8",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                     activeTab === 'user-onboard' ? "bg-slate-800 text-white shadow-lg shadow-black/20" : "text-slate-500 hover:text-slate-300"
                   )}
                   title="Manage and onboard user directory profiles"
@@ -5846,11 +5862,11 @@ Guidelines:
             <div className="relative shrink-0">
               <button 
                 onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                className="btn-secondary flex items-center gap-2 group whitespace-nowrap py-1.5 h-10 text-xs font-bold px-3"
+                className="btn-secondary flex items-center gap-2 group whitespace-nowrap py-1.5 h-11"
               >
-                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform shrink-0" />
-                <span className="hidden sm:inline">Export Report</span>
-                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200 shrink-0", isExportDropdownOpen && "rotate-180")} />
+                <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                <span className="hidden 2xl:inline">Export Report</span>
+                <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isExportDropdownOpen && "rotate-180")} />
               </button>
 
               <AnimatePresence>
@@ -5868,17 +5884,17 @@ Guidelines:
                     >
                       <button
                         onClick={() => handleExport('excel')}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-xs font-bold cursor-pointer"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-xs font-bold"
                       >
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
                         Export to Excel
                       </button>
                       <div className="h-[1px] bg-slate-800/50 mx-2" />
                       <button
                         onClick={() => handleExport('pdf')}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-xs font-bold cursor-pointer"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors text-xs font-bold"
                       >
-                        <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                        <FileText className="w-4 h-4 text-blue-500" />
                         Export to PDF
                       </button>
                     </motion.div>
@@ -5887,11 +5903,11 @@ Guidelines:
               </AnimatePresence>
             </div>
 
-            {/* Mapping Details Text Button — Responsive, hidden on smaller viewports */}
+            {/* Mapping Details Text Button */}
             <button 
               onClick={() => setActiveTab(activeTab === 'mapping-details' ? 'workbook' : 'mapping-details')}
               className={cn(
-                "hidden md:flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all h-10 shrink-0 select-none cursor-pointer border",
+                "flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all h-11 shrink-0 select-none cursor-pointer border",
                 activeTab === 'mapping-details' 
                   ? "bg-slate-800 text-white border-slate-700 shadow-md" 
                   : "bg-slate-900/60 hover:bg-slate-850 border-slate-800 text-slate-400 hover:text-slate-300"
@@ -5905,7 +5921,7 @@ Guidelines:
             <button 
               onClick={() => setActiveTab(activeTab === 'mapping-details' ? 'workbook' : 'mapping-details')}
               className={cn(
-                "flex items-center justify-center w-10 h-10 rounded-xl transition-all shrink-0 cursor-pointer select-none border",
+                "flex items-center justify-center w-11 h-11 rounded-xl transition-all shrink-0 cursor-pointer select-none border",
                 activeTab === 'mapping-details' 
                   ? "bg-amber-500/10 border-amber-500/50 text-amber-300 shadow-lg shadow-amber-950/20" 
                   : "bg-slate-900/60 hover:bg-slate-850 border-slate-800 text-amber-500 hover:text-amber-400"
@@ -5942,7 +5958,7 @@ Guidelines:
               </div>
               <button 
                 onClick={handleLogout}
-                className="ml-1 p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/35 text-red-400 hover:text-red-300 rounded-lg transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider h-8 shrink-0 cursor-pointer"
+                className="ml-1 p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/35 text-red-400 hover:text-red-300 rounded-lg transition-all flex items-center justify-center gap-1.5 text-[9px] font-black uppercase tracking-wider h-8 shrink-0"
                 title="Log Out secure session"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
@@ -5954,11 +5970,11 @@ Guidelines:
             <div className="relative shrink-0">
               <button 
                 onClick={() => setShowThemeDropdown(!showThemeDropdown)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all group h-10 shrink-0 cursor-pointer text-xs font-bold"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 rounded-xl text-slate-400 hover:text-white transition-all group h-11 shrink-0"
                 title="Customize Application Theme"
               >
                 <Palette className="w-3.5 h-3.5 text-violet-400 group-hover:rotate-12 transition-transform shrink-0" />
-                <span className="text-[10px] uppercase tracking-wider font-black hidden sm:inline">Theme</span>
+                <span className="text-[10px] uppercase tracking-wider font-black hidden 2xl:inline">Theme</span>
               </button>
 
               <AnimatePresence>
@@ -5996,7 +6012,7 @@ Guidelines:
                                 setShowThemeDropdown(false);
                               }}
                               className={cn(
-                                "w-full text-left flex items-start gap-3 p-2 rounded-lg border transition-all duration-200 cursor-pointer",
+                                "w-full text-left flex items-start gap-3 p-2 rounded-lg border transition-all duration-200",
                                 isActive 
                                   ? `${themeOpt.activeBg} text-white font-bold` 
                                   : "bg-transparent border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
@@ -6837,7 +6853,7 @@ Guidelines:
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
                               {/* 1. Backlog Level Card */}
                               <div className="bg-slate-950/65 p-3 rounded-xl border border-slate-850/80 flex flex-col justify-between">
                                 <div 
@@ -7806,7 +7822,7 @@ Guidelines:
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="glass-panel p-4 rounded-xl border border-slate-800/60 bg-slate-900/40 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 shadow-xl overflow-hidden"
+                            className="glass-panel p-4 rounded-xl border border-slate-800/60 bg-slate-900/40 grid grid-cols-2 lg:grid-cols-5 gap-4 shadow-xl overflow-hidden"
                           >
                             <div>
                               <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Support Level</label>
@@ -10833,7 +10849,7 @@ Guidelines:
                 </div>
 
                 {/* Stats Dashboard */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <KPICard 
                     label="Problem Registry" 
                     value={pmStats.total} 
@@ -11259,7 +11275,7 @@ Guidelines:
                 </div>
 
                 {/* Analytical KPI Widget Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl">
                     <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Registry Size</span>
                     <p className="text-xl font-sans font-black text-indigo-400 mt-1">{assets.length}</p>
@@ -11286,7 +11302,7 @@ Guidelines:
                     </p>
                     <p className="text-[9px] text-slate-400 font-mono mt-0.5">Assigned to Personnel</p>
                   </div>
-                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl col-span-1 sm:col-span-2 lg:col-span-1">
+                  <div className="bg-slate-900/40 border border-slate-800/80 p-4 rounded-xl col-span-2 lg:col-span-1">
                     <span className="text-[9px] uppercase tracking-widest font-black text-slate-500">Taxonomy Classes</span>
                     <p className="text-xl font-sans font-black text-sky-400 mt-1">{assetCategories.length}</p>
                     <p className="text-[9px] text-slate-400 font-mono mt-0.5">Active Categorizations</p>
