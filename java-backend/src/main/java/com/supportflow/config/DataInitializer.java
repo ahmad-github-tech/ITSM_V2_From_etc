@@ -95,18 +95,30 @@ public class DataInitializer {
                 User u1 = new User("Admin", "Admin User", "Administrator", "Active", "root123");
                 u1.setRecoveryQuestion("First pet's name?");
                 u1.setRecoveryAnswer("buddy");
+                u1.setEmail("admin@enterprise.com");
+                u1.setMobile("+15550001");
+                u1.setGatewayActiveNotify(true);
 
                 User u2 = new User("John.D", "John Doe", "Support Specialist", "Active", "user123");
                 u2.setRecoveryQuestion("Favorite color?");
                 u2.setRecoveryAnswer("blue");
+                u2.setEmail("john.doe@enterprise.com");
+                u2.setMobile("+15550002");
+                u2.setGatewayActiveNotify(true);
 
                 User u3 = new User("Sarah.M", "Sarah Miller", "L2 Engineer", "Active", "user123");
                 u3.setRecoveryQuestion("Birth city?");
                 u3.setRecoveryAnswer("london");
+                u3.setEmail("sarah.miller@enterprise.com");
+                u3.setMobile("+15550003");
+                u3.setGatewayActiveNotify(true);
 
                 User u4 = new User("Support.Alpha", "Alpha Support", "Standard User", "Active", "user123");
                 u4.setRecoveryQuestion("Favorite food?");
                 u4.setRecoveryAnswer("pizza");
+                u4.setEmail("alpha.support@enterprise.com");
+                u4.setMobile("+15550004");
+                u4.setGatewayActiveNotify(true);
 
                 userRepository.saveAll(Arrays.asList(u1, u2, u3, u4));
             }
@@ -125,7 +137,24 @@ public class DataInitializer {
                 Project p4 = new Project("Mobile-App");
                 p4.setDescription("Native Android and iOS Apps");
 
-                projectRepository.saveAll(Arrays.asList(p1, p2, p3, p4));
+                Project p5 = new Project("KAUST");
+                p5.setDescription("King Abdullah University of Science and Technology Portal");
+
+                Project p6 = new Project("GMAIL");
+                p6.setDescription("Google Workspace Mail Gateway Integration");
+
+                projectRepository.saveAll(Arrays.asList(p1, p2, p3, p4, p5, p6));
+            } else {
+                if (projectRepository.findByName("KAUST").isEmpty()) {
+                    Project p = new Project("KAUST");
+                    p.setDescription("King Abdullah University of Science and Technology Portal");
+                    projectRepository.save(p);
+                }
+                if (projectRepository.findByName("GMAIL").isEmpty()) {
+                    Project p = new Project("GMAIL");
+                    p.setDescription("Google Workspace Mail Gateway Integration");
+                    projectRepository.save(p);
+                }
             }
 
             if (taskRepository.count() == 0) {

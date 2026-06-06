@@ -40,6 +40,15 @@ public class UserController {
         if (userDetails.getRecoveryAnswer() != null) {
             user.setRecoveryAnswer(userDetails.getRecoveryAnswer());
         }
+        if (userDetails.getEmail() != null) {
+            user.setEmail(userDetails.getEmail());
+        }
+        if (userDetails.getMobile() != null) {
+            user.setMobile(userDetails.getMobile());
+        }
+        if (userDetails.getGatewayActiveNotify() != null) {
+            user.setGatewayActiveNotify(userDetails.getGatewayActiveNotify());
+        }
         return userRepository.save(user);
     }
 

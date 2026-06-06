@@ -154,7 +154,50 @@ export default function App() {
   useEffect(() => {
     const initFetch = async () => {
       setLoading(true);
+      let fetchedConfig: any = null;
+      let fetchedEmailConfig: any = null;
+      try {
+        const [response, responseEmail] = await Promise.all([
+          fetch('/supportflow/api/settings/gatewayConfigs'),
+          fetch('/supportflow/api/settings/emailConfigs')
+        ]);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.settingValue && data.settingValue !== '{}') {
+            try {
+              const parsed = JSON.parse(data.settingValue);
+              if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                fetchedConfig = parsed;
+              }
+            } catch (e) {
+              console.error('Error parsing gateway configs from DB:', e);
+            }
+          }
+        }
+        if (responseEmail && responseEmail.ok) {
+          const dataEmail = await responseEmail.json();
+          if (dataEmail && dataEmail.settingValue && dataEmail.settingValue !== '{}') {
+            try {
+              const parsed = JSON.parse(dataEmail.settingValue);
+              if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                fetchedEmailConfig = parsed;
+              }
+            } catch (e) {
+              console.error('Error parsing email configs from DB:', e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error connecting to backend (settings):', error);
+      }
+
       await Promise.all([fetchTasks(), fetchProjects(), fetchUsers(), fetchCategories()]);
+      if (fetchedConfig) {
+        setGatewayConfigs(fetchedConfig);
+      }
+      if (fetchedEmailConfig) {
+        setEmailConfigs(fetchedEmailConfig);
+      }
       setLoading(false);
     };
     initFetch();
@@ -1734,7 +1777,8 @@ Signatures Registered:
       smsChannelMode: 'Active' as 'Active' | 'Hold' | 'Stop',
       domainRules: [
         { id: 'dom-1', domain: 'rnlic.com', project: 'RNLIC', priority: 'P1' },
-        { id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' }
+         { id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' },
+         { id: 'dom-3', domain: 'gmail.com', project: 'GMAIL', priority: 'P3' }
       ],
       projectStakeholders: [
         { id: 'stk-1', name: 'Manager Dave', email: 'dave.manager@rnlic.com', mobile: '+15551005', projectId: 'RNLIC', emailActive: true, smsActive: true },
@@ -1766,7 +1810,43 @@ Signatures Registered:
 
   useEffect(() => {
     localStorage.setItem('sflow_gateway_configs', JSON.stringify(gatewayConfigs));
+    const saveToMySQL = async () => {
+      try {
+        await fetch('/supportflow/api/settings/gatewayConfigs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settingKey: 'gatewayConfigs',
+            settingValue: JSON.stringify(gatewayConfigs)
+          })
+        });
+      } catch (error) {
+        console.error('Failed to automatically persist gateway configurations to MySQL:', error);
+      }
+    };
+    saveToMySQL();
   }, [gatewayConfigs]);
+
+  useEffect(() => {
+    localStorage.setItem('sflow_email_configs', JSON.stringify(emailConfigs));
+    const saveEmailConfigsToMySQL = async () => {
+      try {
+        await fetch('/supportflow/api/settings/emailConfigs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settingKey: 'emailConfigs',
+            settingValue: JSON.stringify(emailConfigs)
+          })
+        });
+      } catch (error) {
+        console.error('Failed to automatically persist email configurations to MySQL:', error);
+      }
+    };
+    if (emailConfigs && Object.keys(emailConfigs).length > 0) {
+      saveEmailConfigsToMySQL();
+    }
+  }, [emailConfigs]);
 
   useEffect(() => {
     localStorage.setItem('sflow_gateway_logs', JSON.stringify(gatewayLogs));
