@@ -20,8 +20,13 @@ public class User {
     private String recoveryQuestion;
     private String recoveryAnswer;
 
+    @Column(name = "email", nullable = true)
     private String email;
+
+    @Column(name = "mobile", nullable = true)
     private String mobile;
+
+    @Column(name = "gateway_active_notify", nullable = true)
     private Boolean gatewayActiveNotify = true;
 
     public User() {}

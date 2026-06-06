@@ -15,6 +15,18 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @GetMapping("/debug-columns")
+    public Object debugColumns() {
+        try {
+            return jdbcTemplate.queryForList("SHOW COLUMNS FROM users");
+        } catch (Exception e) {
+            return "Error: " + e.getMessage();
+        }
+    }
+
     @GetMapping
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -22,34 +34,113 @@ public class UserController {
 
     @PostMapping
     public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+        StringBuilder debugLog = new StringBuilder();
+        debugLog.append("--- CREATE USER TRANSACTION ---\n");
+        debugLog.append("Incoming payload: \n")
+                .append("  ID: ").append(user.getId()).append("\n")
+                .append("  Name: ").append(user.getName()).append("\n")
+                .append("  Email: ").append(user.getEmail()).append("\n")
+                .append("  Mobile: ").append(user.getMobile()).append("\n");
+
+        User savedUser = null;
+        try {
+            savedUser = userRepository.save(user);
+            debugLog.append("Saved Successfully: ID=").append(savedUser.getId()).append("\n");
+        } catch (Exception e) {
+            debugLog.append("ERROR: ").append(e.getMessage()).append("\n");
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            debugLog.append(sw.toString()).append("\n");
+        }
+
+        try {
+            java.io.FileWriter writer = new java.io.FileWriter("src/main/resources/user_update_debug.txt", true);
+            writer.write(debugLog.toString());
+            writer.write("\n\n");
+            writer.close();
+        } catch (Exception ignored) {}
+
+        if (savedUser == null) {
+            throw new RuntimeException("Creation failed. See logs.");
+        }
+        return savedUser;
     }
 
     @PutMapping("/{id}")
     public User updateUser(@PathVariable String id, @RequestBody User userDetails) {
-        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found: " + id));
-        user.setName(userDetails.getName());
-        user.setRole(userDetails.getRole());
-        user.setStatus(userDetails.getStatus());
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
-            user.setPassword(userDetails.getPassword());
-        }
-        if (userDetails.getRecoveryQuestion() != null) {
-            user.setRecoveryQuestion(userDetails.getRecoveryQuestion());
-        }
-        if (userDetails.getRecoveryAnswer() != null) {
-            user.setRecoveryAnswer(userDetails.getRecoveryAnswer());
-        }
-        if (userDetails.getEmail() != null) {
+        StringBuilder debugLog = new StringBuilder();
+        debugLog.append("--- UPDATE USER TRANSACTION ---\n");
+        debugLog.append("Path Variable ID: ").append(id).append("\n");
+        debugLog.append("Incoming payload: \n")
+                .append("  ID: ").append(userDetails.getId()).append("\n")
+                .append("  Name: ").append(userDetails.getName()).append("\n")
+                .append("  Email: ").append(userDetails.getEmail()).append("\n")
+                .append("  Mobile: ").append(userDetails.getMobile()).append("\n")
+                .append("  GatewayActiveNotify: ").append(userDetails.getGatewayActiveNotify()).append("\n");
+
+        User savedUser = null;
+        try {
+            User user = userRepository.findById(id)
+                    .orElseGet(() -> userRepository.findAll().stream()
+                            .filter(u -> u.getId().equalsIgnoreCase(id))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException("User not found: " + id)));
+            user.setName(userDetails.getName());
+            user.setRole(userDetails.getRole());
+            user.setStatus(userDetails.getStatus());
+            if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
+                user.setPassword(userDetails.getPassword());
+            }
+            if (userDetails.getRecoveryQuestion() != null) {
+                user.setRecoveryQuestion(userDetails.getRecoveryQuestion());
+            }
+            if (userDetails.getRecoveryAnswer() != null) {
+                user.setRecoveryAnswer(userDetails.getRecoveryAnswer());
+            }
+            
+            // Set email and mobile fields explicitly
             user.setEmail(userDetails.getEmail());
-        }
-        if (userDetails.getMobile() != null) {
             user.setMobile(userDetails.getMobile());
+            
+            if (userDetails.getGatewayActiveNotify() != null) {
+                user.setGatewayActiveNotify(userDetails.getGatewayActiveNotify());
+            }
+
+            debugLog.append("Before Save User: \n")
+                    .append("  ID: ").append(user.getId()).append("\n")
+                    .append("  Name: ").append(user.getName()).append("\n")
+                    .append("  Email: ").append(user.getEmail()).append("\n")
+                    .append("  Mobile: ").append(user.getMobile()).append("\n");
+
+            savedUser = userRepository.save(user);
+
+            debugLog.append("After Save User (Saved Successfully): \n")
+                    .append("  ID: ").append(savedUser.getId()).append("\n")
+                    .append("  Name: ").append(savedUser.getName()).append("\n")
+                    .append("  Email: ").append(savedUser.getEmail()).append("\n")
+                    .append("  Mobile: ").append(savedUser.getMobile()).append("\n");
+
+        } catch (Exception e) {
+            debugLog.append("ERROR: ").append(e.getMessage()).append("\n");
+            // print full stack trace to string
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            e.printStackTrace(pw);
+            debugLog.append(sw.toString()).append("\n");
         }
-        if (userDetails.getGatewayActiveNotify() != null) {
-            user.setGatewayActiveNotify(userDetails.getGatewayActiveNotify());
+
+        try {
+            java.io.FileWriter writer = new java.io.FileWriter("src/main/resources/user_update_debug.txt", true);
+            writer.write(debugLog.toString());
+            writer.write("\n\n");
+            writer.close();
+        } catch (Exception ignored) {}
+
+        if (savedUser == null) {
+            throw new RuntimeException("Update failed. See logs.");
         }
-        return userRepository.save(user);
+        return savedUser;
     }
 
     @DeleteMapping("/{id}")

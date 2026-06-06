@@ -38,6 +38,23 @@ public class DataInitializer {
     @Bean
     public CommandLineRunner initData() {
         return args -> {
+            // Write database columns of 'users' to a text file for debugging
+            try {
+                java.util.List<java.util.Map<String, Object>> cols = jdbcTemplate.queryForList("SHOW COLUMNS FROM users");
+                java.io.FileWriter writer = new java.io.FileWriter("/tmp/db_columns_debug.txt");
+                for (java.util.Map<String, Object> col : cols) {
+                    writer.write(col.get("Field") + " : " + col.get("Type") + "\n");
+                }
+                writer.close();
+                System.out.println("DEBUG COLUMNS written successfully.");
+            } catch (Exception e) {
+                try {
+                    java.io.FileWriter writer = new java.io.FileWriter("/tmp/db_columns_debug.txt");
+                    writer.write("ERROR on SHOW COLUMNS: " + e.getMessage());
+                    writer.close();
+                } catch (Exception ignored) {}
+            }
+
             // Self-repair MySQL database users table columns if Hibernate ddl-auto didn't do it
             try {
                 jdbcTemplate.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL");
@@ -62,10 +79,10 @@ public class DataInitializer {
 
             // If table has existing records without emails or mobiles, update them
             try {
-                jdbcTemplate.update("UPDATE users SET email = 'admin@enterprise.com', mobile = '+15550001', gateway_active_notify = 1 WHERE id = 'Admin' AND (email IS NULL OR email = '')");
-                jdbcTemplate.update("UPDATE users SET email = 'john.doe@enterprise.com', mobile = '+15550002', gateway_active_notify = 1 WHERE id = 'John.D' AND (email IS NULL OR email = '')");
-                jdbcTemplate.update("UPDATE users SET email = 'sarah.miller@enterprise.com', mobile = '+15550003', gateway_active_notify = 1 WHERE id = 'Sarah.M' AND (email IS NULL OR email = '')");
-                jdbcTemplate.update("UPDATE users SET email = 'alpha.support@enterprise.com', mobile = '+15550004', gateway_active_notify = 1 WHERE id = 'Support.Alpha' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'admin@enterprise.com', mobile = '+15551001', gateway_active_notify = 1 WHERE LOWER(id) = 'admin' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'john.doe@enterprise.com', mobile = '+15551002', gateway_active_notify = 1 WHERE LOWER(id) = 'john.d' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'sarah.miller@enterprise.com', mobile = '+15551003', gateway_active_notify = 1 WHERE LOWER(id) = 'sarah.m' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'alpha.support@enterprise.com', mobile = '+15551004', gateway_active_notify = 1 WHERE LOWER(id) = 'support.alpha' AND (email IS NULL OR email = '')");
                 System.out.println("Seeded emails/mobiles for default administrators and support staff.");
             } catch (Exception e) {
                 System.out.println("Skipped default user detail update: " + e.getMessage());
