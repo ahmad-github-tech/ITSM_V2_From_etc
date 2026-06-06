@@ -41,7 +41,7 @@ public class DataInitializer {
             // Write database columns of 'users' to a text file for debugging
             try {
                 java.util.List<java.util.Map<String, Object>> cols = jdbcTemplate.queryForList("SHOW COLUMNS FROM users");
-                java.io.FileWriter writer = new java.io.FileWriter("/tmp/db_columns_debug.txt");
+                java.io.FileWriter writer = new java.io.FileWriter("db_columns_debug.txt");
                 for (java.util.Map<String, Object> col : cols) {
                     writer.write(col.get("Field") + " : " + col.get("Type") + "\n");
                 }
@@ -49,7 +49,7 @@ public class DataInitializer {
                 System.out.println("DEBUG COLUMNS written successfully.");
             } catch (Exception e) {
                 try {
-                    java.io.FileWriter writer = new java.io.FileWriter("/tmp/db_columns_debug.txt");
+                    java.io.FileWriter writer = new java.io.FileWriter("db_columns_debug.txt");
                     writer.write("ERROR on SHOW COLUMNS: " + e.getMessage());
                     writer.close();
                 } catch (Exception ignored) {}
@@ -86,6 +86,49 @@ public class DataInitializer {
                 System.out.println("Seeded emails/mobiles for default administrators and support staff.");
             } catch (Exception e) {
                 System.out.println("Skipped default user detail update: " + e.getMessage());
+            }
+
+            // Write absolute database logs to secure and viewable /java-backend/db_debug_startup.json
+            try {
+                java.io.FileWriter writer = new java.io.FileWriter("/java-backend/db_debug_startup.json");
+                writer.write("{\n");
+                
+                // Write columns
+                writer.write("  \"columns\": [\n");
+                try {
+                    java.util.List<java.util.Map<String, Object>> cols = jdbcTemplate.queryForList("SHOW COLUMNS FROM users");
+                    for (int i = 0; i < cols.size(); i++) {
+                        java.util.Map<String, Object> col = cols.get(i);
+                        writer.write("    {\"field\": \"" + col.get("Field") + "\", \"type\": \"" + col.get("Type") + "\"}" + (i < cols.size() - 1 ? "," : "") + "\n");
+                    }
+                } catch (Exception ex) {
+                    writer.write("    {\"error\": \"" + ex.getMessage() + "\"}\n");
+                }
+                writer.write("  ],\n");
+
+                // Write rows
+                writer.write("  \"rows\": [\n");
+                try {
+                    java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT * FROM users");
+                    for (int i = 0; i < rows.size(); i++) {
+                        java.util.Map<String, Object> row = rows.get(i);
+                        writer.write("    {");
+                        java.util.List<String> entries = new java.util.ArrayList<>();
+                        for (java.util.Map.Entry<String, Object> entry : row.entrySet()) {
+                            entries.add("\"" + entry.getKey() + "\": \"" + (entry.getValue() != null ? entry.getValue().toString().replace("\"", "\\\"") : "null") + "\"");
+                        }
+                        writer.write(String.join(", ", entries));
+                        writer.write("}" + (i < rows.size() - 1 ? "," : "") + "\n");
+                    }
+                } catch (Exception ex) {
+                    writer.write("    {\"error\": \"" + ex.getMessage() + "\"}\n");
+                }
+                writer.write("  ]\n");
+                writer.write("}\n");
+                writer.close();
+                System.out.println("DEBUG: Successfully wrote raw db state to /java-backend/db_debug_startup.json");
+            } catch (Exception ex) {
+                System.out.println("DEBUG ERROR: Could not write diagnostics file: " + ex.getMessage());
             }
 
             if (categoryMappingRepository.count() == 0) {

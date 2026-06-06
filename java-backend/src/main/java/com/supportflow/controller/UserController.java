@@ -20,11 +20,16 @@ public class UserController {
 
     @GetMapping("/debug-columns")
     public Object debugColumns() {
+        java.util.Map<String, Object> debugInfo = new java.util.HashMap<>();
         try {
-            return jdbcTemplate.queryForList("SHOW COLUMNS FROM users");
+            debugInfo.put("columns", jdbcTemplate.queryForList("SHOW COLUMNS FROM users"));
+            debugInfo.put("raw_rows", jdbcTemplate.queryForList("SELECT * FROM users"));
+            debugInfo.put("jpa_rows", userRepository.findAll());
+            debugInfo.put("jpa_rows_count", userRepository.count());
         } catch (Exception e) {
-            return "Error: " + e.getMessage();
+            debugInfo.put("error", e.getMessage());
         }
+        return debugInfo;
     }
 
     @GetMapping
@@ -55,7 +60,7 @@ public class UserController {
         }
 
         try {
-            java.io.FileWriter writer = new java.io.FileWriter("src/main/resources/user_update_debug.txt", true);
+            java.io.FileWriter writer = new java.io.FileWriter("user_update_debug.txt", true);
             writer.write(debugLog.toString());
             writer.write("\n\n");
             writer.close();
@@ -131,7 +136,7 @@ public class UserController {
         }
 
         try {
-            java.io.FileWriter writer = new java.io.FileWriter("src/main/resources/user_update_debug.txt", true);
+            java.io.FileWriter writer = new java.io.FileWriter("user_update_debug.txt", true);
             writer.write(debugLog.toString());
             writer.write("\n\n");
             writer.close();

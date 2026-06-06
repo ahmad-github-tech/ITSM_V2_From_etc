@@ -402,6 +402,13 @@ Signatures Registered:
           setUsers(data);
         }
       }
+      try {
+        const dbRes = await fetch('/supportflow/api/users/debug-columns');
+        if (dbRes.ok) {
+          const dbData = await dbRes.json();
+          (window as any)._dbDebugData = dbData;
+        }
+      } catch (ignored) {}
     } catch (error) {
       console.error('Error connecting to backend (users):', error);
     }
@@ -11355,6 +11362,80 @@ spring.mail.properties.mail.smtp.starttls.enable=false`}
                           </tbody>
                         </table>
                       </div>
+                    </div>
+
+                    {/* Database Diagnostics Panel for Live Debugging */}
+                    <div className="chart-container p-6 bg-slate-900/40 border border-slate-800 rounded-xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Server className="w-5 h-5 text-fuchsia-400" />
+                          <div>
+                            <h4 className="text-xs font-black text-white uppercase tracking-widest">Active Database Schema &amp; Diagnostics</h4>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Real-time inspection of backend storage layer</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const w = window as any;
+                            w._showDbDebug = !w._showDbDebug;
+                            // force re-render
+                            setUsers(prev => [...prev]);
+                          }}
+                          className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-300 rounded border border-slate-700 transition-all cursor-pointer"
+                        >
+                          {(window as any)._showDbDebug ? "Hide Diagnostics" : "Reveal Diagnostics"}
+                        </button>
+                      </div>
+
+                      {(window as any)._showDbDebug && (
+                        <div className="space-y-4 pt-4 border-t border-slate-800/40 animate-fade-in text-xs">
+                          {/* Columns Section */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">MySQL Physical Table Columns ('users')</h5>
+                            <div className="flex flex-wrap gap-2">
+                              {((window as any)._dbDebugData?.columns || []).map((col: any) => (
+                                <span key={col.field} className="px-2 py-1 bg-slate-950 border border-slate-800 rounded font-mono text-[9px] text-emerald-400 flex items-center gap-1.5 shadow-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  <span className="font-extrabold text-slate-300 uppercase">{col.field}</span>
+                                  <span className="text-slate-500 font-normal">({col.type})</span>
+                                </span>
+                              ))}
+                              {!((window as any)._dbDebugData?.columns) && (
+                                <span className="text-[10px] uppercase font-bold text-slate-500 italic">No columns queried / DB disconnected</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Raw DB Rows Section */}
+                          <div className="space-y-2">
+                            <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Exact Database Records (Raw SQL state)</h5>
+                            <div className="bg-slate-950/80 p-4 border border-slate-800/80 rounded-lg overflow-x-auto font-mono text-[10px] leading-relaxed max-h-[300px] overflow-y-auto">
+                              {((window as any)._dbDebugData?.raw_rows || []).length > 0 ? (
+                                <div className="space-y-3">
+                                  {((window as any)._dbDebugData?.raw_rows || []).map((row: any, idx: number) => (
+                                    <div key={idx} className="p-2 bg-slate-900/50 rounded border border-slate-800/40 hover:border-fuchsia-500/20 transition-all space-y-1 text-left">
+                                      <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-fuchsia-400 font-bold border-b border-slate-800/30 pb-1 mb-1 font-sans">
+                                        <span>User ID: <span className="text-slate-200">{row.id}</span></span>
+                                        <span className="px-1.5 py-0.2 bg-slate-800 text-slate-400 rounded text-[8px] font-black uppercase tracking-wide">Row #{idx + 1}</span>
+                                      </div>
+                                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-slate-300">
+                                        <div><span className="text-slate-500">Name:</span> {row.name}</div>
+                                        <div><span className="text-slate-500">Role:</span> {row.role}</div>
+                                        <div><span className="text-slate-500">Status:</span> {row.status}</div>
+                                        <div><span className="text-slate-500">Email:</span> <span className={row.email ? "text-emerald-400 font-extrabold font-mono" : "text-amber-500/80 font-normal italic font-sans"}>{row.email || "NULL"}</span></div>
+                                        <div><span className="text-slate-500">Mobile:</span> <span className={row.mobile ? "text-emerald-400 font-extrabold font-mono" : "text-amber-500/80 font-normal italic font-sans"}>{row.mobile || "NULL"}</span></div>
+                                        <div><span className="text-slate-500">Notify:</span> <span className="text-slate-200 font-mono">{row.gateway_active_notify !== null ? String(row.gateway_active_notify) : "NULL"}</span></div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] uppercase font-bold text-slate-500 italic">No exact records returned by MySQL query</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
