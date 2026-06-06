@@ -18,7 +18,7 @@ import {
   Search, Download, Trash2, LayoutDashboard, ListTodo, Filter, ChevronRight, ChevronLeft, ArrowUpDown, Settings, Save,
   Pencil, RotateCcw, AlertTriangle, Info, ShieldAlert, UserPlus, Users, Key,
   History, Eye, Scale, Terminal, Calendar, ChevronDown, FileSpreadsheet, FileText, X, Palette,
-  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail, Laptop, Server, BarChart3
+  BookOpen, Sparkles, MessageSquare, Send, Brain, Wrench, Paperclip, Upload, Copy, Check, FileCode, ImageIcon, Mail, Laptop, Server, BarChart3, Cpu
 } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { format, subDays, differenceInMinutes, parseISO as dateFnsParseISO, startOfDay, endOfDay, addDays, subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from 'date-fns';
@@ -313,14 +313,25 @@ Signatures Registered:
   };
 
   const fetchProjects = async () => {
+    const defaultProjs = [
+      { id: 1, name: 'Enterprise Support' },
+      { id: 2, name: 'IT Infrastructure' },
+      { id: 3, name: 'Security & SSO' },
+      { id: 4, name: 'Oracle Database Team' },
+      { id: 5, name: 'RNLIC' },
+      { id: 6, name: 'KAUST' }
+    ];
     try {
       const response = await fetch(API_PROJECTS);
       if (response.ok) {
         const data = await response.json();
-        setProjectsDB(data);
+        setProjectsDB(data && data.length > 0 ? data : defaultProjs);
+      } else {
+        setProjectsDB(defaultProjs);
       }
     } catch (error) {
       console.error('Error connecting to backend (projects):', error);
+      setProjectsDB(defaultProjs);
     }
   };
 
@@ -498,10 +509,10 @@ Signatures Registered:
   
   // User Onboard State
   const [users, setUsers] = useState<AppUser[]>([
-    { id: 'Admin', name: 'Admin User', role: 'Administrator', status: 'Active' },
-    { id: 'John.D', name: 'John Doe', role: 'Support Specialist', status: 'Active' },
-    { id: 'Sarah.M', name: 'Sarah Miller', role: 'L2 Engineer', status: 'Active' },
-    { id: 'Support.Alpha', name: 'Alpha Support', role: 'Standard User', status: 'Active' },
+    { id: 'Admin', name: 'Admin User', role: 'Administrator', status: 'Active', email: 'admin@enterprise.com', mobile: '+15551001', gatewayActiveNotify: true },
+    { id: 'John.D', name: 'John Doe', role: 'Support Specialist', status: 'Active', email: 'john.doe@enterprise.com', mobile: '+15551002', gatewayActiveNotify: true },
+    { id: 'Sarah.M', name: 'Sarah Miller', role: 'L2 Engineer', status: 'Active', email: 'sarah.miller@enterprise.com', mobile: '+15551003', gatewayActiveNotify: true },
+    { id: 'Support.Alpha', name: 'Alpha Support', role: 'Standard User', status: 'Active', email: 'alpha.support@enterprise.com', mobile: '+15551004', gatewayActiveNotify: false },
   ]);
   const [editingUser, setEditingUser] = useState<string | null>(null);
 
@@ -510,7 +521,10 @@ Signatures Registered:
     name: '',
     password: '',
     status: 'Active',
-    role: 'Standard User'
+    role: 'Standard User',
+    email: '',
+    mobile: '',
+    gatewayActiveNotify: true
   });
 
   // Login & Password Recovery states
@@ -644,6 +658,9 @@ Signatures Registered:
         const newUser: AppUser = {
           id: userFormData.id!,
           name: userFormData.name!,
+          email: userFormData.email || '',
+          mobile: userFormData.mobile || '',
+          gatewayActiveNotify: userFormData.gatewayActiveNotify ?? true,
           password: userFormData.password || (existingUser?.password) || 'Welcome123!',
           status: (userFormData.status as any) || 'Active',
           role: userFormData.role || 'Standard User',
@@ -659,7 +676,7 @@ Signatures Registered:
           });
           if (response.ok) {
             await fetchUsers();
-            setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '' });
+            setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '', email: '', mobile: '', gatewayActiveNotify: true });
             setEditingUser(null);
           } else {
             // If API fails, still update local UI for demo purposes but log error
@@ -669,7 +686,7 @@ Signatures Registered:
             } else {
               setUsers(prev => [...prev, newUser]);
             }
-            setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '' });
+            setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '', email: '', mobile: '', gatewayActiveNotify: true });
             setEditingUser(null);
           }
         } catch (error) {
@@ -679,7 +696,7 @@ Signatures Registered:
           } else {
             setUsers(prev => [...prev, newUser]);
           }
-          setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '' });
+          setUserFormData({ id: '', name: '', password: '', status: 'Active', role: 'Standard User', recoveryQuestion: '', recoveryAnswer: '', email: '', mobile: '', gatewayActiveNotify: true });
           setEditingUser(null);
         }
       },
@@ -697,7 +714,10 @@ Signatures Registered:
       status: user.status,
       role: user.role,
       recoveryQuestion: user.recoveryQuestion || '',
-      recoveryAnswer: user.recoveryAnswer || ''
+      recoveryAnswer: user.recoveryAnswer || '',
+      email: user.email || '',
+      mobile: user.mobile || '',
+      gatewayActiveNotify: user.gatewayActiveNotify ?? true
     });
   };
 
@@ -1687,6 +1707,17 @@ Signatures Registered:
   const [newRuleProject, setNewRuleProject] = useState('');
   const [newRulePriority, setNewRulePriority] = useState<'P1' | 'P2' | 'P3' | 'P4'>('P3');
 
+  // New Domain Rules Form State
+  const [newDomainRuleText, setNewDomainRuleText] = useState('');
+  const [newDomainRuleProj, setNewDomainRuleProj] = useState('');
+  const [newDomainRulePriority, setNewDomainRulePriority] = useState<'P1' | 'P2' | 'P3' | 'P4'>('P2');
+
+  // New Stakeholder Manager State
+  const [newStkName, setNewStkName] = useState('');
+  const [newStkEmail, setNewStkEmail] = useState('');
+  const [newStkMobile, setNewStkMobile] = useState('');
+  const [newStkProj, setNewStkProj] = useState('');
+
   const [gatewayConfigs, setGatewayConfigs] = useState(() => {
     const saved = localStorage.getItem('sflow_gateway_configs');
     if (saved) {
@@ -1699,6 +1730,16 @@ Signatures Registered:
       smtpPort: '587',
       smsTwilioSid: 'ACxxxxxxxxxxxxxx',
       smsTwilioPhone: '+1800SUPPORT',
+      emailChannelMode: 'Active' as 'Active' | 'Hold' | 'Stop',
+      smsChannelMode: 'Active' as 'Active' | 'Hold' | 'Stop',
+      domainRules: [
+        { id: 'dom-1', domain: 'rnlic.com', project: 'RNLIC', priority: 'P1' },
+        { id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' }
+      ],
+      projectStakeholders: [
+        { id: 'stk-1', name: 'Manager Dave', email: 'dave.manager@rnlic.com', mobile: '+15551005', projectId: 'RNLIC', emailActive: true, smsActive: true },
+        { id: 'stk-2', name: 'VP Khalid', email: 'khalid.dir@kaust.edu', mobile: '+15551006', projectId: 'KAUST', emailActive: true, smsActive: true }
+      ],
       rules: [
         { id: 'rule-1', keyword: 'database', project: 'Oracle Database Team', priority: 'P1' },
         { id: 'rule-2', keyword: 'server', project: 'IT Infrastructure', priority: 'P2' },
@@ -3892,21 +3933,48 @@ Guidelines:
     setSimTerminalLogs(p => [...p, `[${new Date().toLocaleTimeString()}] Gateway TCP connection opened...`]);
     
     setTimeout(async () => {
-      // 1. Determine priority and project matching keyword on subject
-      const fullText = (testInboundEmailSubject + " " + testInboundEmailBody).toLowerCase();
-      let matchedRule = gatewayConfigs.rules.find((r: any) => fullText.includes(r.keyword.toLowerCase()));
+      // 1. Determine priority and project matching either domain level rules first (e.g. (@kaust.com to KAUST) or keyword on subject
+      const emailLower = testInboundEmailSender.toLowerCase();
+      let matchedProj = 'Enterprise Support';
+      let matchedPriority = 'P3';
+      let routingDetail = '';
       
-      const matchedProj = matchedRule ? matchedRule.project : 'Enterprise Support';
-      const matchedPriority = matchedRule ? matchedRule.priority : 'P3';
+      const domainRule = (gatewayConfigs.domainRules || []).find((d: any) => 
+        emailLower.endsWith(d.domain.toLowerCase()) || emailLower.includes('@' + d.domain.toLowerCase())
+      );
       
+      let matchedRule: any = null;
+      if (domainRule) {
+        matchedProj = domainRule.project;
+        matchedPriority = domainRule.priority;
+        routingDetail = `Domain Rule Matched: "@${domainRule.domain}" -> Routed to ${matchedProj} project [Priority: ${matchedPriority}]`;
+      } else {
+        const fullText = (testInboundEmailSubject + " " + testInboundEmailBody).toLowerCase();
+        matchedRule = gatewayConfigs.rules.find((r: any) => fullText.includes(r.keyword.toLowerCase()));
+        matchedProj = matchedRule ? matchedRule.project : 'Enterprise Support';
+        matchedPriority = matchedRule ? matchedRule.priority : 'P3';
+        routingDetail = matchedRule 
+          ? `Keyword Match: "${matchedRule.keyword}" -> Routed to ${matchedProj} project [Priority: ${matchedPriority}]`
+          : `No rule match -> Defaulted to Enterprise Support (P3)`;
+      }
+      
+      // 2. Extract Customer mobile number from email of the receiver / body through which we create
+      const phoneRegex = /(?:\+?(\d{1,3}))?[-.( ]*(\d{3})[-.) ]*(\d{3})[-. ]*(\d{4})/g;
+      const extractedMatches = testInboundEmailBody.match(phoneRegex) || [];
+      const extractedMobile = extractedMatches.length > 0 ? extractedMatches[0] : null;
+      const extractionLogs: string[] = [];
+      if (extractedMobile) {
+        extractionLogs.push(`[${new Date().toLocaleTimeString()}] ✅ [EXTRACTED CUSTOMER MOBILE]: "${extractedMobile}" found in email body.`);
+      } else {
+        extractionLogs.push(`[${new Date().toLocaleTimeString()}] ℹ️ No explicit telephone pattern discovered in email body.`);
+      }
+
       setSimTerminalLogs(p => [
         ...p,
         `[${new Date().toLocaleTimeString()}] Connection established with MX mail exchanger`,
         `[${new Date().toLocaleTimeString()}] INBOUND MAIL RECEIVED: From <${testInboundEmailSender}>`,
-        `[${new Date().toLocaleTimeString()}] Parsing subject and body keywords...`,
-        matchedRule 
-          ? `[${new Date().toLocaleTimeString()}] Keyword match: "${matchedRule.keyword}". Routing to: ${matchedProj} (${matchedPriority})`
-          : `[${new Date().toLocaleTimeString()}] No keyword pattern match! Defaulting: Enterprise Support (P3)`
+        `[${new Date().toLocaleTimeString()}] ${routingDetail}`,
+        ...extractionLogs
       ]);
 
       const nowIso = new Date().toISOString();
@@ -3923,7 +3991,7 @@ Guidelines:
         closureDate: null,
         status: 'Open' as TaskStatus,
         userIntimated: true,
-        description: `[Email Gateway Ingestion] From: <${testInboundEmailSender}>\nSubject: ${testInboundEmailSubject}\n\nBody:\n${testInboundEmailBody}`,
+        description: `[Email Gateway Ingestion] From: <${testInboundEmailSender}>${extractedMobile ? `\n[Extracted Receiver Mobile: ${extractedMobile}]` : ''}\nSubject: ${testInboundEmailSubject}\n\nBody:\n${testInboundEmailBody}`,
         solution: '',
         remarks: 'Auto-registered via Inbound Email Exchanger Server',
         assignedTo: 'Sarah Miller',
@@ -3937,7 +4005,7 @@ Guidelines:
             timestamp: nowIso,
             user: 'SMTP Gateway Daemon',
             action: 'Ticket Created',
-            details: `Automatically parsed and created ticket ${ticketId}. Routed to ${matchedProj} under priority escalation ${matchedPriority}.`
+            details: `Automatically parsed email. Created ticket ${ticketId}. Routed to project ${matchedProj} [Priority ${matchedPriority}].`
           }
         ])
       };
@@ -3951,7 +4019,6 @@ Guidelines:
         });
         if (response.ok) {
           finalTask = await response.json();
-          // parse auditLog
           finalTask.auditLog = finalTask.auditLog ? (typeof finalTask.auditLog === 'string' ? JSON.parse(finalTask.auditLog) : finalTask.auditLog) : [];
         }
       } catch (err) {
@@ -3976,13 +4043,24 @@ Guidelines:
         sender: testInboundEmailSender,
         recipient: gatewayConfigs.inboundEmail,
         text: `Subject: ${testInboundEmailSubject} | BodyPreview: ${testInboundEmailBody.substring(0, 50)}...`,
-        details: matchedRule 
-          ? `Rule Match ("${matchedRule.keyword}") -> Routed to ${matchedProj} (${matchedPriority})` 
-          : `No match template rule -> Defaulted to Enterprise Support (P3)`,
+        details: routingDetail,
         status: 'Processed'
       };
 
-      // Outbox Auto confirmation email from Global "No Reply" address to end user
+      // 3. Outbox Auto confirmation based on active channels
+      const emailMode = gatewayConfigs.emailChannelMode || 'Active';
+      const smsMode = gatewayConfigs.smsChannelMode || 'Active';
+      
+      let emailStatusText = 'Sent';
+      let emailLogText = 'Delivery successful via Gateway SMTP server';
+      if (emailMode === 'Hold') {
+        emailStatusText = 'Queued';
+        emailLogText = 'SMTP Transmission is on HOLD. Queued in gateway spool folder for dispatch postponement.';
+      } else if (emailMode === 'Stop') {
+        emailStatusText = 'Blocked';
+        emailLogText = 'SMTP Transmission is STOPPED/DEACTIVATED. Alert rejected.';
+      }
+
       const outLog = {
         id: `glog-m-out-${Date.now() + 1}`,
         type: 'outbound_email',
@@ -3990,17 +4068,78 @@ Guidelines:
         sender: gatewayConfigs.globalEmail,
         recipient: testInboundEmailSender,
         text: `[Enterprise Ticketing Workspace] Confirmation: Ticket #${ticketId} has been successfully registered. Status: Open. Priority: ${matchedPriority}. Our L1 triage specialist (Sarah Miller) has been assigned.`,
-        details: `Auto reply triggered by Inbound Ingestion. Successfully delivered via local mock SMTP outbound gateway server`,
-        status: 'Sent'
+        details: emailLogText,
+        status: emailStatusText
       };
+
+      // 4. Dispatch Alert Log simulations for Onboarded Team Members & Project Stakeholders
+      const dispatchLogs: string[] = [];
+
+      // A. "on-board module we need to add email and mobile number of who is working on the ticket they must receive the information about new case creation only."
+      // Let's filter users who have gatewayActiveNotify enabled
+      const workingStaff = users.filter((u: any) => u.status === 'Active' && u.gatewayActiveNotify);
+      workingStaff.forEach((staff: any) => {
+        // Staff Email alert
+        if (emailMode === 'Active') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📧 [STAFF EMAIL SENT]: "New Case Alert" routed to ${staff.name} (${staff.email || 'no-email'})`);
+        } else if (emailMode === 'Hold') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [STAFF EMAIL ON HOLD]: Queued "New Case Alert" in spool for ${staff.name} (${staff.email || 'no-email'})`);
+        } else {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 🛑 [STAFF EMAIL DEACTIVATED]: Ignored email alert to ${staff.name}`);
+        }
+
+        // Staff Mobile SMS Alert
+        if (smsMode === 'Active') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📱 [STAFF SMS SENT]: "New Case Alert" texted to ${staff.name} at mobile number ${staff.mobile || 'no-mobile'}`);
+        } else if (smsMode === 'Hold') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [STAFF SMS ON HOLD]: Queued "New Case Alert" text packet for ${staff.name} (${staff.mobile || 'no-mobile'})`);
+        } else {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 🛑 [STAFF SMS DEACTIVATED]: Ignored text alert to ${staff.name}`);
+        }
+      });
+
+      // B. Project-wise emails and mobile configurations (including managers or other members)
+      const matchesStakeholders = (gatewayConfigs.projectStakeholders || []).filter((s: any) => s.projectId === matchedProj);
+      matchesStakeholders.forEach((stk: any) => {
+        if (stk.emailActive) {
+          if (emailMode === 'Active') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📧 [PROJECT MANAGER EMAIL SENT]: "New Incident #${ticketId}" dispatch alert sent to stakeholder ${stk.name} <${stk.email}>`);
+          } else if (emailMode === 'Hold') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [PROJECT MANAGER EMAIL ON HOLD]: Spool holding email alert for ${stk.name} <${stk.email}>`);
+          } else {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 🛑 [PROJECT MANAGER EMAIL STOPPED]: Ignored email dispatch to stakeholder ${stk.name}`);
+          }
+        }
+        
+        if (stk.smsActive) {
+          if (smsMode === 'Active') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📱 [PROJECT MANAGER SMS SENT]: "New Incident #${ticketId}" SMS update sent to stakeholder ${stk.name} at number ${stk.mobile}`);
+          } else if (smsMode === 'Hold') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [PROJECT MANAGER SMS ON HOLD]: Packet spooling text alert for ${stk.name} at mobile ${stk.mobile}`);
+          } else {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 🛑 [PROJECT MANAGER SMS STOPPED]: Ignored text SMS alert to stakeholder ${stk.name}`);
+          }
+        }
+      });
+
+      // C. Extract mobile number receiver notification delivery
+      if (extractedMobile) {
+        if (smsMode === 'Active') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📱 [CUSTOMER CLIENT SMS SENT]: Delivered case registration update to extracted number ${extractedMobile}!`);
+        } else if (smsMode === 'Hold') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [CUSTOMER CLIENT SMS HOLD]: SMS channel on hold. Client update queued for ${extractedMobile}.`);
+        } else {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 🛑 [CUSTOMER CLIENT SMS REJECTED]: SMS alert channel deactivated. Rejected dispatch to mobile ${extractedMobile}.`);
+        }
+      }
 
       setGatewayLogs((prev: any) => [inboundLog, outLog, ...prev]);
       setSimTerminalLogs(p => [
         ...p,
+        ...dispatchLogs,
         `[${new Date().toLocaleTimeString()}] INBOUND ROUTING TASK COMPLETED`,
         `[${new Date().toLocaleTimeString()}] TICKET ${ticketId} CREATED IN MY WORKBOOK DATABASE`,
-        `[${new Date().toLocaleTimeString()}] DISPATCHING CONFIRMATION EMAIL FROM: <${gatewayConfigs.globalEmail}> To: <${testInboundEmailSender}>`,
-        `[${new Date().toLocaleTimeString()}] OUTBOX DISPATCH COMPLETED SECURELY`
+        `[${new Date().toLocaleTimeString()}] CONFIRMATION EMAIL: Status [${emailStatusText}] sender: <${gatewayConfigs.globalEmail}> To: <${testInboundEmailSender}>`
       ]);
       setIsProcessingMailSim(false);
     }, 1200);
@@ -4104,6 +4243,19 @@ Guidelines:
       };
 
       // Outbox Auto confirmation SMS
+      const smsMode = gatewayConfigs.smsChannelMode || 'Active';
+      const emailMode = gatewayConfigs.emailChannelMode || 'Active';
+      
+      let smsStatusText = 'Sent';
+      let smsLogText = 'SMS dispatched via Twilio Gateway';
+      if (smsMode === 'Hold') {
+        smsStatusText = 'Queued';
+        smsLogText = 'SMS channel is on HOLD. Queued in gateway spool folder for dispatch postponement.';
+      } else if (smsMode === 'Stop') {
+        smsStatusText = 'Blocked';
+        smsLogText = 'SMS channel is STOPPED/DEACTIVATED. Alert rejected.';
+      }
+
       const outLog = {
         id: `glog-s-out-${Date.now() + 1}`,
         type: 'outbound_sms',
@@ -4111,17 +4263,55 @@ Guidelines:
         sender: gatewayConfigs.smsTwilioPhone,
         recipient: testInboundSmsSender,
         text: `UVCE Support: Ticket #${ticketId} created. Priority: ${matchedPriority}. Triage team has been notified.`,
-        details: `Twilio API Hook confirmation dispatched to cellular gateway bearer`,
-        status: 'Sent'
+        details: smsLogText,
+        status: smsStatusText
       };
+
+      // Dispatch alert notifications
+      const dispatchLogs: string[] = [];
+
+      // A. Active Onboarded staff
+      const workingStaff = users.filter((u: any) => u.status === 'Active' && u.gatewayActiveNotify);
+      workingStaff.forEach((staff: any) => {
+        if (emailMode === 'Active') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📧 [STAFF EMAIL SENT]: SMS-initiated Alert routed to ${staff.name} (${staff.email || 'no-email'})`);
+        } else if (emailMode === 'Hold') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [STAFF EMAIL ON HOLD]: SMS-initiated Alert spooled for ${staff.name}`);
+        }
+        
+        if (smsMode === 'Active') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📱 [STAFF SMS SENT]: SMS-initiated Alert texted to ${staff.name} at number ${staff.mobile || 'no-mobile'}`);
+        } else if (smsMode === 'Hold') {
+          dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [STAFF SMS ON HOLD]: SMS-initiated Alert spooled to mobile for ${staff.name}`);
+        }
+      });
+
+      // B. Project Managers configured for this project
+      const matchesStakeholders = (gatewayConfigs.projectStakeholders || []).filter((s: any) => s.projectId === matchedProj);
+      matchesStakeholders.forEach((stk: any) => {
+        if (stk.emailActive) {
+          if (emailMode === 'Active') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📧 [PROJ MANAGER EMAIL SENT]: SMS-created ticket #${ticketId} dispatch to ${stk.name} <${stk.email}>`);
+          } else if (emailMode === 'Hold') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [PROJ MANAGER EMAIL ON HOLD]: Spooling alert copy for ${stk.name} <${stk.email}>`);
+          }
+        }
+        if (stk.smsActive) {
+          if (smsMode === 'Active') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] 📱 [PROJ MANAGER SMS SENT]: SMS-created ticket #${ticketId} text to ${stk.name} at mobile number ${stk.mobile}`);
+          } else if (smsMode === 'Hold') {
+            dispatchLogs.push(`[${new Date().toLocaleTimeString()}] ⏳ [PROJ MANAGER SMS ON HOLD]: Spool holding SMS alert for ${stk.name} at mobile ${stk.mobile}`);
+          }
+        }
+      });
 
       setGatewayLogs((prev: any) => [inboundLog, outLog, ...prev]);
       setSimTerminalLogs(p => [
         ...p,
+        ...dispatchLogs,
         `[${new Date().toLocaleTimeString()}] INBOUND ROUTING TASK COMPLETED`,
         `[${new Date().toLocaleTimeString()}] TICKET ${ticketId} CREATED IN MY WORKBOOK DATABASE`,
-        `[${new Date().toLocaleTimeString()}] DISPATCHING CONFIRMATION SMS FROM: ${gatewayConfigs.smsTwilioPhone} To: ${testInboundSmsSender}`,
-        `[${new Date().toLocaleTimeString()}] MOBILE RECIPIENT NOTIFICATION DELIVERED`
+        `[${new Date().toLocaleTimeString()}] CONFIRMATION SMS: Status [${smsStatusText}] sender: ${gatewayConfigs.smsTwilioPhone} To: ${testInboundSmsSender}`
       ]);
       setIsProcessingSmsSim(false);
     }, 1200);
@@ -8345,71 +8535,259 @@ Guidelines:
 
                             {/* TAB 2: Rules */}
                             {activeGatewayTab === 'rules' && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                                  {/* Append Rule Form */}
-                                  <div className="lg:col-span-5 bg-slate-950/60 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
-                                    <h4 className="text-[10px] text-slate-300 font-black uppercase tracking-widest text-left mb-2">Append Inbound Routing Rule</h4>
-                                    
-                                    <div className="space-y-3 text-left">
-                                      <div className="text-left">
-                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1 font-sans">Subject Keyword</label>
+                              <div className="space-y-6">
+                                {/* SECTION 1: Operational Channel Gateway Switchers */}
+                                <div className="bg-slate-950/70 border border-slate-800 p-4.5 rounded-xl space-y-3 text-left">
+                                  <div className="flex items-center gap-2">
+                                    <Cpu className="w-4 h-4 text-amber-400" />
+                                    <h4 className="text-xs font-black text-white uppercase tracking-widest font-sans">Enterprise Gateway Channel Mode Controller</h4>
+                                  </div>
+                                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                    Toggle transmission statuses for global SMTP outbox queue and Twilio SMS rest webhook pipelines instantly.
+                                  </p>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                                    {/* Email Channel Switcher */}
+                                    <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between">
+                                      <div className="space-y-0.5 text-left">
+                                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                                          <Mail className="w-3.5 h-3.5 text-cyan-400" />
+                                          <span>Global SMTP Delivery Channel</span>
+                                        </div>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase">Confirmations, agent and manager alert copies</p>
+                                      </div>
+                                      <div className="flex bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                                        {(['Active', 'Hold', 'Stop'] as const).map((mode) => (
+                                          <button
+                                            key={mode}
+                                            onClick={() => setGatewayConfigs((prev: any) => ({ ...prev, emailChannelMode: mode }))}
+                                            className={cn(
+                                              "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all",
+                                              (gatewayConfigs.emailChannelMode || 'Active') === mode
+                                                ? (mode === 'Active' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : mode === 'Hold' ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-rose-500/20 text-rose-400 border border-rose-500/30")
+                                                : "text-slate-500 hover:text-slate-300"
+                                            )}
+                                          >
+                                            {mode}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* SMS Channel Switcher */}
+                                    <div className="bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between">
+                                      <div className="space-y-0.5 text-left">
+                                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                                          <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+                                          <span>Twilio SMS Webhook Channel</span>
+                                        </div>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase">Receiver customer and triage specialist text alerts</p>
+                                      </div>
+                                      <div className="flex bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                                        {(['Active', 'Hold', 'Stop'] as const).map((mode) => (
+                                          <button
+                                            key={mode}
+                                            onClick={() => setGatewayConfigs((prev: any) => ({ ...prev, smsChannelMode: mode }))}
+                                            className={cn(
+                                              "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all",
+                                              (gatewayConfigs.smsChannelMode || 'Active') === mode
+                                                ? (mode === 'Active' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : mode === 'Hold' ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-rose-500/20 text-rose-400 border border-rose-500/30")
+                                                : "text-slate-500 hover:text-slate-300"
+                                            )}
+                                          >
+                                            {mode}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  {/* SECTION 2: Domain-wise Email Mapping Route Config */}
+                                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-left space-y-4">
+                                    <div className="border-b border-slate-800 pb-2 flex items-center justify-between">
+                                      <div>
+                                        <h4 className="text-[10px] text-amber-400 font-black uppercase tracking-widest font-sans">Project-Wise Domain Mappings</h4>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">E.g. sender "@rnlic.com" creates tickets under dynamic RNLIC project</p>
+                                      </div>
+                                      <span className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded text-[8px] font-mono font-black text-slate-400">
+                                        {(gatewayConfigs.domainRules || []).length} Domain rules
+                                      </span>
+                                    </div>
+
+                                    {/* Domain list rules */}
+                                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                                      {(gatewayConfigs.domainRules || []).map((rule: any) => (
+                                        <div key={rule.id} className="bg-slate-900/80 border border-slate-850 p-2 rounded-lg flex items-center justify-between">
+                                          <div className="space-y-0.5 text-left">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[10.5px] font-black text-cyan-400 font-mono">@{rule.domain}</span>
+                                              <span className="text-[8px] bg-slate-950 border border-slate-800 text-slate-400 px-1 py-0.1 font-mono rounded">
+                                                {rule.priority} Priority
+                                              </span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                              Route Project: <span className="text-white text-[9px] font-mono bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">{rule.project}</span>
+                                            </p>
+                                          </div>
+                                          <button
+                                            onClick={() => setGatewayConfigs((prev: any) => ({
+                                              ...prev,
+                                              domainRules: prev.domainRules.filter((d: any) => d.id !== rule.id)
+                                            }))}
+                                            className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-950 transition-colors cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                      {(gatewayConfigs.domainRules || []).length === 0 && (
+                                        <div className="text-[8px] uppercase tracking-wider font-extrabold text-slate-500 italic py-6 text-center">No domain map routers configured</div>
+                                      )}
+                                    </div>
+
+                                    {/* Domain Input Form */}
+                                    <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-2">
+                                      <p className="text-[8px] font-black uppercase text-slate-300">Append Dynamic Domain Map Rule</p>
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                         <input 
                                           type="text"
-                                          value={newRuleKeyword}
-                                          onChange={e => setNewRuleKeyword(e.target.value)}
-                                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-amber-500/40"
-                                          placeholder="e.g. database, password, mailbox"
+                                          value={newDomainRuleText}
+                                          onChange={e => setNewDomainRuleText(e.target.value)}
+                                          className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[9px] text-white font-mono placeholder-slate-650 outline-none"
+                                          placeholder="e.g. kaust.com"
                                         />
-                                        <span className="text-[7px] text-slate-500 font-bold block mt-1 uppercase">Case-insensitive. Scans mail subject and body text to route dynamically.</span>
-                                      </div>
-
-                                      <div className="text-left">
-                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Destination Project Group</label>
                                         <select
-                                          value={newRuleProject}
-                                          onChange={e => setNewRuleProject(e.target.value)}
-                                          className="w-full bg-slate-900 border border-slate-800 text-[10px] text-white rounded px-2.5 py-1.5 outline-none font-bold cursor-pointer"
+                                          value={newDomainRuleProj}
+                                          onChange={e => setNewDomainRuleProj(e.target.value)}
+                                          className="bg-slate-950 border border-slate-800 rounded text-[9px] text-slate-300 px-2 py-1 outline-none font-bold cursor-pointer"
                                         >
-                                          <option value="">-- Choose Project --</option>
+                                          <option value="">-- Project --</option>
                                           {PROJECTS_LIST.map(p => (
                                             <option key={p} value={p}>{p}</option>
                                           ))}
                                         </select>
+                                        <select
+                                          value={newDomainRulePriority}
+                                          onChange={e => setNewDomainRulePriority(e.target.value as any)}
+                                          className="bg-slate-950 border border-slate-800 rounded text-[9px] text-slate-300 px-1 py-1 outline-none font-bold cursor-pointer font-sans"
+                                        >
+                                          <option value="P1">P1 Critical</option>
+                                          <option value="P2">P2 High</option>
+                                          <option value="P3">P3 Medium</option>
+                                          <option value="P4">P4 Low</option>
+                                        </select>
                                       </div>
+                                      <button
+                                        onClick={() => {
+                                          if (!newDomainRuleText.trim()) return alert("Enter host domain");
+                                          if (!newDomainRuleProj) return alert("Select target project");
+                                          const domainClean = newDomainRuleText.trim().replace('@', '');
+                                          if ((gatewayConfigs.domainRules || []).find((d: any) => d.domain.toLowerCase() === domainClean.toLowerCase())) {
+                                            return alert("This domain route already registered");
+                                          }
+                                          const newDom = {
+                                            id: `dom-${Date.now()}`,
+                                            domain: domainClean,
+                                            project: newDomainRuleProj,
+                                            priority: newDomainRulePriority
+                                          };
+                                          setGatewayConfigs((prev: any) => ({
+                                            ...prev,
+                                            domainRules: [...(prev.domainRules || []), newDom]
+                                          }));
+                                          setNewDomainRuleText('');
+                                        }}
+                                        className="w-full py-1 bg-amber-600 hover:bg-amber-500 text-white font-black text-[8px] uppercase tracking-wider rounded transition-all cursor-pointer shadow"
+                                      >
+                                        Add Domain Mapping Route
+                                      </button>
+                                    </div>
+                                  </div>
 
-                                      <div className="text-left">
-                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1 font-sans">Priority Level Alert Scale</label>
+                                  {/* SECTION 3: Standard Keyword Subject Filters Table */}
+                                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-left space-y-4">
+                                    <div className="border-b border-slate-800 pb-2 flex items-center justify-between">
+                                      <div>
+                                        <h4 className="text-[10px] text-indigo-400 font-black uppercase tracking-widest font-sans">Active Keyword Routing Rules</h4>
+                                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Scans subject/context of emails when no domain rules are matching</p>
+                                      </div>
+                                      <span className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded text-[8px] font-mono font-black text-slate-400">
+                                        {gatewayConfigs.rules.length} Rules
+                                      </span>
+                                    </div>
+
+                                    {/* Keyword list */}
+                                    <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                                      {gatewayConfigs.rules.map((rule: any) => (
+                                        <div key={rule.id} className="bg-slate-900/80 border border-slate-850 p-2 rounded-lg flex items-center justify-between">
+                                          <div className="space-y-0.5 text-left">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[11px] font-black text-amber-500 font-mono">"{rule.keyword}"</span>
+                                              <span className="text-[8px] bg-slate-950 border border-slate-800 text-slate-400 px-1 py-0.1 font-mono rounded">
+                                                {rule.priority} Priority
+                                              </span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                              Target Proj: <span className="text-white text-[9px] font-mono bg-slate-950 px-1.5 py-0.2 rounded border border-slate-800">{rule.project}</span>
+                                            </p>
+                                          </div>
+                                          <button
+                                            onClick={() => setGatewayConfigs((prev: any) => ({
+                                              ...prev,
+                                              rules: prev.rules.filter((r: any) => r.id !== rule.id)
+                                            }))}
+                                            className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-950 transition-colors cursor-pointer"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* Keyword Input form */}
+                                    <div className="bg-slate-900 p-3 rounded-lg border border-slate-800 space-y-2">
+                                      <p className="text-[8px] font-black uppercase text-slate-300">Append Fallback Keyword Map Rule</p>
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input 
+                                          type="text"
+                                          value={newRuleKeyword}
+                                          onChange={e => setNewRuleKeyword(e.target.value)}
+                                          className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[9px] text-white placeholder-slate-650 outline-none"
+                                          placeholder="e.g. database"
+                                        />
+                                        <select
+                                          value={newRuleProject}
+                                          onChange={e => setNewRuleProject(e.target.value)}
+                                          className="bg-slate-950 border border-slate-800 rounded text-[9px] text-slate-300 px-2 py-1 outline-none font-bold cursor-pointer"
+                                        >
+                                          <option value="">-- Project --</option>
+                                          {PROJECTS_LIST.map(p => (
+                                            <option key={p} value={p}>{p}</option>
+                                          ))}
+                                        </select>
                                         <select
                                           value={newRulePriority}
                                           onChange={e => setNewRulePriority(e.target.value as any)}
-                                          className="w-full bg-slate-900 border border-slate-800 text-[10px] text-white rounded px-2.5 py-1.5 outline-none font-bold cursor-pointer font-sans"
+                                          className="bg-slate-950 border border-slate-800 rounded text-[9px] text-slate-300 px-1 py-1 outline-none font-bold cursor-pointer font-sans"
                                         >
-                                          <option value="P1">P1 - Critical Priority</option>
-                                          <option value="P2">P2 - High Priority</option>
-                                          <option value="P3">P3 - Medium Priority</option>
-                                          <option value="P4">P4 - Low Priority</option>
+                                          <option value="P1">P1 Critical</option>
+                                          <option value="P2">P2 High</option>
+                                          <option value="P3">P3 Medium</option>
+                                          <option value="P4">P4 Low</option>
                                         </select>
                                       </div>
-
                                       <button
                                         onClick={() => {
-                                          if (!newRuleKeyword.trim()) {
-                                            alert("Please enter a keyword.");
-                                            return;
-                                          }
-                                          if (!newRuleProject) {
-                                            alert("Please select a target project.");
-                                            return;
-                                          }
-                                          const isDup = gatewayConfigs.rules.find((r: any) => r.keyword.toLowerCase() === newRuleKeyword.trim().toLowerCase());
-                                          if (isDup) {
-                                            alert("This keyword route rule already exists.");
-                                            return;
+                                          if (!newRuleKeyword.trim()) return alert("Enter keyword");
+                                          if (!newRuleProject) return alert("Select project");
+                                          const keywordClean = newRuleKeyword.trim().toLowerCase();
+                                          if (gatewayConfigs.rules.find((r: any) => r.keyword === keywordClean)) {
+                                            return alert("This keyword routing rule already exists");
                                           }
                                           const newRuleObj = {
                                             id: `rule-${Date.now()}`,
-                                            keyword: newRuleKeyword.trim().toLowerCase(),
+                                            keyword: keywordClean,
                                             project: newRuleProject,
                                             priority: newRulePriority
                                           };
@@ -8419,59 +8797,199 @@ Guidelines:
                                           }));
                                           setNewRuleKeyword('');
                                         }}
-                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-wider py-1.5 rounded-lg cursor-pointer shadow mt-2"
+                                        className="w-full py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[8px] uppercase tracking-wider rounded transition-all cursor-pointer shadow"
                                       >
-                                        Add Routing Association Rule
+                                        Add Fallback Keyword Route
                                       </button>
                                     </div>
                                   </div>
+                                </div>
 
-                                  {/* Rules Table */}
-                                  <div className="lg:col-span-7 bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-left">
-                                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-                                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Active Keyword Keyword Routing Rules Table</span>
-                                      <span className="text-[8px] font-mono text-slate-500 uppercase font-black">{gatewayConfigs.rules.length} Active Rules</span>
+                                {/* SECTION 4: Project-Wise Emails and Mobiles Number notification configuration */}
+                                <div className="bg-slate-950/70 border border-slate-800 p-4.5 rounded-xl text-left space-y-4">
+                                  <div className="border-b border-slate-800 pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="space-y-0.5 text-left">
+                                      <h4 className="text-xs font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                                        <Users className="w-4 h-4" />
+                                        <span>Project Supervisor &amp; Stakeholder Dispatch Directory</span>
+                                      </h4>
+                                      <p className="text-[8.5px] text-slate-400 font-bold uppercase tracking-wide">
+                                        Configure project managers, supervisors or other key staff who get notified of case creation only. Edit, delete, or activate/inactive hold status.
+                                      </p>
                                     </div>
+                                    <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono text-[9px] font-black text-slate-350 self-start sm:self-center">
+                                      {(gatewayConfigs.projectStakeholders || []).length} Stakeholders Registered
+                                    </span>
+                                  </div>
 
-                                    <div className="max-h-[220px] overflow-y-auto space-y-2 custom-scrollbar">
-                                      {gatewayConfigs.rules.map((rule: any) => (
-                                        <div key={rule.id} className="bg-slate-900 border border-slate-805 p-2.5 rounded-lg flex items-center justify-between text-left">
+                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                                    {/* Register Stakeholder Form */}
+                                    <div className="lg:col-span-5 bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3.5 text-left">
+                                      <p className="text-[10px] font-black uppercase text-white border-b border-slate-800 pb-1.5 flex items-center gap-1 font-sans">
+                                        <UserPlus className="w-3.5 h-3.5 text-rose-400" />
+                                        <span>Onboard Stakeholder Alert</span>
+                                      </p>
+                                      
+                                      <div className="space-y-2.5">
+                                        <div>
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Target Project</label>
+                                          <select
+                                            value={newStkProj}
+                                            onChange={e => setNewStkProj(e.target.value)}
+                                            className="w-full bg-slate-950 border border-slate-800 rounded text-[9.5px] text-white px-2 py-1.5 outline-none font-bold cursor-pointer"
+                                          >
+                                            <option value="">-- Select Project Group --</option>
+                                            {PROJECTS_LIST.map(p => (
+                                              <option key={p} value={p}>{p}</option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
                                           <div>
-                                            <div className="flex items-center gap-1.5 text-left">
-                                              <span className="text-amber-400 font-mono text-[11px] font-black">"{rule.keyword}"</span>
-                                              <span className="text-[8px] tracking-widest uppercase font-extrabold text-slate-500">subject word</span>
-                                            </div>
-                                            <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold leading-none">
-                                              Reroutes to: <span className="text-white bg-slate-950 px-1 py-0.5 rounded border border-slate-800 text-[9px] font-mono">{rule.project}</span>
-                                            </p>
+                                            <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Personnel Name</label>
+                                            <input 
+                                              type="text" 
+                                              value={newStkName}
+                                              onChange={e => setNewStkName(e.target.value)}
+                                              className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-[9.5px] text-white placeholder-slate-655 font-bold outline-none"
+                                              placeholder="e.g. Manager Dave"
+                                            />
                                           </div>
-
-                                          <div className="flex items-center gap-3 shrink-0">
-                                            <span 
-                                              className="text-[8px] font-mono font-black border uppercase px-1.5 py-0.5 rounded leading-none"
-                                              style={{
-                                                borderColor: PRIORITY_COLORS[rule.priority as Priority] + '50',
-                                                color: PRIORITY_COLORS[rule.priority as Priority],
-                                                backgroundColor: PRIORITY_COLORS[rule.priority as Priority] + '12'
-                                              }}
-                                            >
-                                              {rule.priority}
-                                            </span>
-                                            <button
-                                              onClick={() => {
-                                                setGatewayConfigs((prev: any) => ({
-                                                  ...prev,
-                                                  rules: prev.rules.filter((r: any) => r.id !== rule.id)
-                                                }));
-                                              }}
-                                              className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-950 border border-transparent hover:border-slate-800 transition-all cursor-pointer"
-                                              title="Delete routing rule"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
+                                          <div>
+                                            <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Cellular Mobile</label>
+                                            <input 
+                                              type="text" 
+                                              value={newStkMobile}
+                                              onChange={e => setNewStkMobile(e.target.value)}
+                                              className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-[9.5px] text-white font-mono placeholder-slate-655 outline-none"
+                                              placeholder="e.g. +15552391"
+                                            />
                                           </div>
                                         </div>
-                                      ))}
+
+                                        <div>
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Corporate Email Address</label>
+                                          <input 
+                                            type="email" 
+                                            value={newStkEmail}
+                                            onChange={e => setNewStkEmail(e.target.value)}
+                                            className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white font-mono placeholder-slate-655 outline-none"
+                                            placeholder="manager@rnlic.com"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        onClick={() => {
+                                          if (!newStkName.trim()) return alert("Enter stakeholder name");
+                                          if (!newStkProj) return alert("Select target project correlation");
+                                          if (!newStkEmail.trim() && !newStkMobile.trim()) return alert("Specify at least one channel address (Email or Mobile Phone)");
+                                          
+                                          const newStk = {
+                                            id: `stk-${Date.now()}`,
+                                            name: newStkName.trim(),
+                                            email: newStkEmail.trim() || 'No Email configured',
+                                            mobile: newStkMobile.trim() || 'No Mobile phone configured',
+                                            projectId: newStkProj,
+                                            emailActive: !!newStkEmail.trim(),
+                                            smsActive: !!newStkMobile.trim()
+                                          };
+                                          
+                                          setGatewayConfigs((prev: any) => ({
+                                            ...prev,
+                                            projectStakeholders: [...(prev.projectStakeholders || []), newStk]
+                                          }));
+                                          
+                                          setNewStkName('');
+                                          setNewStkEmail('');
+                                          setNewStkMobile('');
+                                        }}
+                                        className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-[9px] uppercase tracking-wider rounded-lg transition-all cursor-pointer shadow"
+                                      >
+                                        Register Manager notification preferences
+                                      </button>
+                                    </div>
+
+                                    {/* Registered Stakeholders List Table */}
+                                    <div className="lg:col-span-7 bg-slate-950/40 p-1 border border-slate-800 rounded-xl overflow-hidden text-left">
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm whitespace-nowrap">
+                                          <thead className="bg-slate-950 text-slate-500 font-mono font-black uppercase text-[8px] tracking-widest border-b border-slate-800">
+                                            <tr>
+                                              <th className="px-3 py-2">Project</th>
+                                              <th className="px-3 py-2">Personnel</th>
+                                              <th className="px-3 py-2 text-center">Email Notify</th>
+                                              <th className="px-3 py-2 text-center">SMS Notify</th>
+                                              <th className="px-3 py-2 text-right">Delete</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-800/30 text-[9.5px]">
+                                            {(gatewayConfigs.projectStakeholders || []).map((stk: any) => (
+                                              <tr key={stk.id} className="hover:bg-slate-900/30 transition-colors">
+                                                <td className="px-3 py-2">
+                                                  <span className="text-[9px] font-mono text-white bg-slate-950 border border-slate-800 px-1.5 py-0.2 rounded font-semibold">{stk.projectId}</span>
+                                                </td>
+                                                <td className="px-3 py-2 text-slate-300">
+                                                  <div className="font-bold text-white text-[10px]">{stk.name}</div>
+                                                  <div className="text-[8px] text-slate-500 font-mono select-all mt-0.5">{stk.email} | {stk.mobile}</div>
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <button
+                                                    onClick={() => setGatewayConfigs((prev: any) => ({
+                                                      ...prev,
+                                                      projectStakeholders: prev.projectStakeholders.map((s: any) => s.id === stk.id ? { ...s, emailActive: !s.emailActive } : s)
+                                                    }))}
+                                                    className={cn(
+                                                      "px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider cursor-pointer",
+                                                      stk.emailActive 
+                                                        ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" 
+                                                        : "text-slate-500 bg-slate-900 border border-slate-800"
+                                                    )}
+                                                  >
+                                                    {stk.emailActive ? "ACTIVE" : "STOP"}
+                                                  </button>
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                  <button
+                                                    onClick={() => setGatewayConfigs((prev: any) => ({
+                                                      ...prev,
+                                                      projectStakeholders: prev.projectStakeholders.map((s: any) => s.id === stk.id ? { ...s, smsActive: !s.smsActive } : s)
+                                                    }))}
+                                                    className={cn(
+                                                      "px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider cursor-pointer",
+                                                      stk.smsActive 
+                                                        ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20" 
+                                                        : "text-slate-505 bg-slate-900 border border-slate-800"
+                                                    )}
+                                                  >
+                                                    {stk.smsActive ? "ACTIVE" : "STOP"}
+                                                  </button>
+                                                </td>
+                                                <td className="px-3 py-2 text-right">
+                                                  <button
+                                                    onClick={() => setGatewayConfigs((prev: any) => ({
+                                                      ...prev,
+                                                      projectStakeholders: prev.projectStakeholders.filter((s: any) => s.id !== stk.id)
+                                                    }))}
+                                                    className="text-slate-500 hover:text-red-400 p-0.5 cursor-pointer"
+                                                    title="Remove stakeholder"
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                            {(gatewayConfigs.projectStakeholders || []).length === 0 && (
+                                              <tr>
+                                                <td colSpan={5} className="px-3 py-8 text-center text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                                  No managers/stakeholders registered in dispatch preference profiles
+                                                </td>
+                                              </tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -10524,6 +11042,45 @@ spring.mail.properties.mail.smtp.starttls.enable=false`}
                           />
                         </div>
                         <div>
+                          <label className="label-sm block mb-1.5">Corporate Email Address</label>
+                          <input 
+                            type="email" 
+                            className="input-field w-full font-mono text-[11px]"
+                            placeholder="e.g. alex.kim@enterprise.com"
+                            value={userFormData.email || ''}
+                            onChange={e => setUserFormData({...userFormData, email: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="label-sm block mb-1.5">Mobile Phone (For Priority SMS Alerts)</label>
+                          <input 
+                            type="text" 
+                            className="input-field w-full font-mono text-[11px]"
+                            placeholder="e.g. +15550293"
+                            value={userFormData.mobile || ''}
+                            onChange={e => setUserFormData({...userFormData, mobile: e.target.value})}
+                          />
+                        </div>
+                        <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black tracking-wider uppercase text-slate-300">Gateway Alerts</span>
+                            <button
+                              onClick={() => setUserFormData(prev => ({ ...prev, gatewayActiveNotify: !prev.gatewayActiveNotify }))}
+                              className={cn(
+                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest",
+                                userFormData.gatewayActiveNotify 
+                                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
+                                  : "bg-slate-800 text-slate-500 border border-slate-700"
+                              )}
+                            >
+                              {userFormData.gatewayActiveNotify ? "ACTIVE" : "STANDBY"}
+                            </button>
+                          </div>
+                          <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wide">
+                            Receive copy alerts on new case registration &amp; ticket updates.
+                          </p>
+                        </div>
+                        <div>
                           <label className="label-sm block mb-1.5">Access Status</label>
                           <select 
                             className="input-field w-full text-xs"
@@ -10599,9 +11156,9 @@ spring.mail.properties.mail.smtp.starttls.enable=false`}
                         <table className="w-full text-left text-sm">
                           <thead className="bg-slate-900/50 border-b border-slate-800">
                             <tr>
-                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">Personnel</th>
-                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">UID</th>
-                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">Level/Role</th>
+                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">Personnel &amp; Contact</th>
+                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500 font-sans">UID / Mobile</th>
+                              <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">Level / Gateway Alerts</th>
                               <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500">Status</th>
                               <th className="px-6 py-4 font-black text-[10px] uppercase tracking-widest text-slate-500 text-right">Action</th>
                             </tr>
@@ -10609,12 +11166,30 @@ spring.mail.properties.mail.smtp.starttls.enable=false`}
                           <tbody className="divide-y divide-slate-800/30">
                             {users.map((user) => (
                               <tr key={user.id} className="hover:bg-slate-800/20 transition-colors group">
-                                <td className="px-6 py-4 text-white font-bold text-[11px]">{user.name}</td>
-                                <td className="px-6 py-4 text-slate-500 font-mono text-[10px] uppercase">{user.id}</td>
-                                <td className="px-6 py-4">
-                                  <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[9px] font-bold uppercase tracking-wide border border-slate-700">
-                                    {user.role}
-                                  </span>
+                                <td className="px-6 py-4 text-left">
+                                  <div className="font-bold text-white text-[11px]">{user.name}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono select-all mt-0.5">{user.email || "No Email Registered"}</div>
+                                </td>
+                                <td className="px-6 py-4 text-left">
+                                  <div className="text-slate-200 font-mono text-[10px] uppercase">{user.id}</div>
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">{user.mobile || "No Mobile"}</div>
+                                </td>
+                                <td className="px-6 py-4 text-left space-y-1">
+                                  <div>
+                                    <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[9px] font-bold uppercase tracking-wide border border-slate-700">
+                                      {user.role}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className={cn(
+                                      "px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider",
+                                      user.gatewayActiveNotify 
+                                        ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25" 
+                                        : "text-slate-500 bg-slate-900 border border-slate-800"
+                                    )}>
+                                      {user.gatewayActiveNotify ? "Gateway Notifications Enabled" : "Gateway Silent"}
+                                    </span>
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4">
                                   <button

@@ -80,6 +80,9 @@ export interface ProjectConfig {
 export interface AppUser {
   id: string; // User ID
   name: string;
+  email?: string;
+  mobile?: string;
+  gatewayActiveNotify?: boolean;
   password?: string;
   status: 'Active' | 'Inactive';
   role: string;
