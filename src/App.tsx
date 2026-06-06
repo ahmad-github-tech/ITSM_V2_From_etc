@@ -1673,6 +1673,110 @@ Signatures Registered:
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isInlineDashboardOpen, setIsInlineDashboardOpen] = useState(true);
   const [isInlineAnalyticsOpen, setIsInlineAnalyticsOpen] = useState(false);
+  const [isEmailSmsGatewayOpen, setIsEmailSmsGatewayOpen] = useState(false);
+  const [activeGatewayTab, setActiveGatewayTab] = useState<'simulator' | 'rules' | 'logs' | 'sts-guide'>('simulator');
+  const [testInboundEmailSender, setTestInboundEmailSender] = useState('user@kaust.edu');
+  const [testInboundEmailSubject, setTestInboundEmailSubject] = useState('Need help with database connection timeout');
+  const [testInboundEmailBody, setTestInboundEmailBody] = useState('Im getting a timed-out error whenever I query the relational SQL schema in STS.');
+  const [testInboundSmsSender, setTestInboundSmsSender] = useState('+15551234');
+  const [testInboundSmsText, setTestInboundSmsText] = useState('Office email server seems to be down for maintenance.');
+  const [isProcessingMailSim, setIsProcessingMailSim] = useState(false);
+  const [isProcessingSmsSim, setIsProcessingSmsSim] = useState(false);
+  const [simTerminalLogs, setSimTerminalLogs] = useState<string[]>([]);
+  const [newRuleKeyword, setNewRuleKeyword] = useState('');
+  const [newRuleProject, setNewRuleProject] = useState('');
+  const [newRulePriority, setNewRulePriority] = useState<'P1' | 'P2' | 'P3' | 'P4'>('P3');
+
+  const [gatewayConfigs, setGatewayConfigs] = useState(() => {
+    const saved = localStorage.getItem('sflow_gateway_configs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      globalEmail: 'no-reply@enterprise.com',
+      inboundEmail: 'support-gateway@enterprise.com',
+      smtpHost: 'mail.smtp.enterprise.com',
+      smtpPort: '587',
+      smsTwilioSid: 'ACxxxxxxxxxxxxxx',
+      smsTwilioPhone: '+1800SUPPORT',
+      rules: [
+        { id: 'rule-1', keyword: 'database', project: 'Oracle Database Team', priority: 'P1' },
+        { id: 'rule-2', keyword: 'server', project: 'IT Infrastructure', priority: 'P2' },
+        { id: 'rule-3', keyword: 'network', project: 'Security & SSO', priority: 'P2' },
+        { id: 'rule-4', keyword: 'email', project: 'Enterprise Support', priority: 'P3' },
+        { id: 'rule-5', keyword: 'login', project: 'Security & SSO', priority: 'P2' },
+        { id: 'rule-6', keyword: 'laptop', project: 'Enterprise Support', priority: 'P4' }
+      ]
+    };
+  });
+
+  const [gatewayLogs, setGatewayLogs] = useState(() => {
+    const saved = localStorage.getItem('sflow_gateway_logs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: 'glog-1', type: 'inbound_email', timestamp: new Date(Date.now() - 36000 * 1000).toISOString(), sender: 'client1@corporate.com', recipient: 'support-gateway@enterprise.com', text: 'URGENT: Oracle Database cluster is extremely slow. Need investigation.', details: 'Matched keyword "database" -> Routed to Oracle Database Team (P1)', status: 'Processed' },
+      { id: 'glog-2', type: 'outbound_email', timestamp: new Date(Date.now() - 35900 * 1000).toISOString(), sender: 'no-reply@enterprise.com', recipient: 'client1@corporate.com', text: 'Ticket INC-GW-3891 has been created from your email request. Severity: P1 Critical. Assigned to Sarah Miller.', details: 'Delivery successful via Gateway SMTP server', status: 'Sent' },
+      { id: 'glog-3', type: 'inbound_sms', timestamp: new Date(Date.now() - 18000 * 1000).toISOString(), sender: '+15551029', recipient: '+1800SUPPORT', text: 'Our network switch is offline in Build B.', details: 'Matched keyword "network" -> Routed to Security & SSO (P2)', status: 'Processed' },
+      { id: 'glog-4', type: 'outbound_sms', timestamp: new Date(Date.now() - 17950 * 1000).toISOString(), sender: '+1800SUPPORT', recipient: '+15551029', text: 'UVCE Support: Ticket INC-GW-7112 registered. Severity: P2 High.', details: 'SMS dispatched via Twilio Gateway', status: 'Sent' }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sflow_gateway_configs', JSON.stringify(gatewayConfigs));
+  }, [gatewayConfigs]);
+
+  useEffect(() => {
+    localStorage.setItem('sflow_gateway_logs', JSON.stringify(gatewayLogs));
+  }, [gatewayLogs]);
+
+  // Synchronize dynamic status changes for Outbound Notification Alerts
+  const prevTasksRef = React.useRef<SupportTask[]>([]);
+  useEffect(() => {
+    if (prevTasksRef.current.length > 0 && tasks.length > 0) {
+      tasks.forEach(task => {
+        const prev = prevTasksRef.current.find(t => t.id === task.id);
+        if (prev && prev.status !== task.status) {
+          // Worker updated target task status! Generate corresponding outgoing SMS and email alerts.
+          const humanId = task.ticketId || `INC-ID-${task.id}`;
+          const isFromGateway = humanId.includes('INC-GW-');
+          const targetEmail = isFromGateway 
+            ? task.createdBy 
+            : `${task.createdBy?.toLowerCase().replace(/\s+/g, '') || 'client'}@enterprise.com`;
+          const targetPhone = isFromGateway && task.createdBy?.startsWith('+') 
+            ? task.createdBy 
+            : `+15550293`;
+
+          const emailLog = {
+            id: `glog-auto-e-${Date.now()}`,
+            type: 'outbound_email' as const,
+            timestamp: new Date().toISOString(),
+            sender: gatewayConfigs.globalEmail,
+            recipient: targetEmail || 'client@enterprise.com',
+            text: `[ESTS Notification] Ticket #${humanId} status changed from "${prev.status}" to "${task.status}". Assignee: ${task.assignedTo || 'Unassigned'}. Solution/Step Notes: ${task.solution || 'No details provided yet.'}`,
+            details: `Automatic trigger dispatched on worker state change via Local SMTP Server (${gatewayConfigs.smtpHost}:${gatewayConfigs.smtpPort})`,
+            status: 'Sent' as const
+          };
+
+          const smsLog = {
+            id: `glog-auto-s-${Date.now() + 1}`,
+            type: 'outbound_sms' as const,
+            timestamp: new Date().toISOString(),
+            sender: gatewayConfigs.smsTwilioPhone,
+            recipient: targetPhone,
+            text: `Support Alert: Ticket #${humanId} status is now ${task.status.toUpperCase()}. Assignee: ${task.assignedTo || 'Eng'}.`,
+            details: `Automatic SMS dispatched to Twilio REST API Hook`,
+            status: 'Sent' as const
+          };
+
+          setGatewayLogs(prevLogs => [emailLog, smsLog, ...prevLogs]);
+        }
+      });
+    }
+    prevTasksRef.current = tasks;
+  }, [tasks, gatewayConfigs]);
+
   const [metricsDrilldownStatus, setMetricsDrilldownStatus] = useState<string | null>(null);
   const [drilldownComplianceFilter, setDrilldownComplianceFilter] = useState<'all' | 'compliant' | 'breached'>('all');
   const [editingAsset, setEditingAsset] = useState<any | null>(null);
@@ -3777,6 +3881,250 @@ Guidelines:
     } finally {
       setIsBotLoading(false);
     }
+  };
+
+  const handleSimulateInboundEmail = async () => {
+    if (!testInboundEmailSender.trim()) {
+      alert("Please provide a sender email.");
+      return;
+    }
+    setIsProcessingMailSim(true);
+    setSimTerminalLogs(p => [...p, `[${new Date().toLocaleTimeString()}] Gateway TCP connection opened...`]);
+    
+    setTimeout(async () => {
+      // 1. Determine priority and project matching keyword on subject
+      const fullText = (testInboundEmailSubject + " " + testInboundEmailBody).toLowerCase();
+      let matchedRule = gatewayConfigs.rules.find((r: any) => fullText.includes(r.keyword.toLowerCase()));
+      
+      const matchedProj = matchedRule ? matchedRule.project : 'Enterprise Support';
+      const matchedPriority = matchedRule ? matchedRule.priority : 'P3';
+      
+      setSimTerminalLogs(p => [
+        ...p,
+        `[${new Date().toLocaleTimeString()}] Connection established with MX mail exchanger`,
+        `[${new Date().toLocaleTimeString()}] INBOUND MAIL RECEIVED: From <${testInboundEmailSender}>`,
+        `[${new Date().toLocaleTimeString()}] Parsing subject and body keywords...`,
+        matchedRule 
+          ? `[${new Date().toLocaleTimeString()}] Keyword match: "${matchedRule.keyword}". Routing to: ${matchedProj} (${matchedPriority})`
+          : `[${new Date().toLocaleTimeString()}] No keyword pattern match! Defaulting: Enterprise Support (P3)`
+      ]);
+
+      const nowIso = new Date().toISOString();
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const ticketId = `INC-GW-${randomSuffix}`;
+      
+      const payload = {
+        ticketId,
+        projectId: matchedProj,
+        supportLevel: 'L1' as SupportLevel,
+        priority: matchedPriority as Priority,
+        generationDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        responseDate: null,
+        closureDate: null,
+        status: 'Open' as TaskStatus,
+        userIntimated: true,
+        description: `[Email Gateway Ingestion] From: <${testInboundEmailSender}>\nSubject: ${testInboundEmailSubject}\n\nBody:\n${testInboundEmailBody}`,
+        solution: '',
+        remarks: 'Auto-registered via Inbound Email Exchanger Server',
+        assignedTo: 'Sarah Miller',
+        createdBy: testInboundEmailSender,
+        resolutionDetails: '',
+        holdReason: '',
+        category: 'Software',
+        subcategory: 'Application Bug',
+        auditLog: JSON.stringify([
+          {
+            timestamp: nowIso,
+            user: 'SMTP Gateway Daemon',
+            action: 'Ticket Created',
+            details: `Automatically parsed and created ticket ${ticketId}. Routed to ${matchedProj} under priority escalation ${matchedPriority}.`
+          }
+        ])
+      };
+
+      let finalTask: any = null;
+      try {
+        const response = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          finalTask = await response.json();
+          // parse auditLog
+          finalTask.auditLog = finalTask.auditLog ? (typeof finalTask.auditLog === 'string' ? JSON.parse(finalTask.auditLog) : finalTask.auditLog) : [];
+        }
+      } catch (err) {
+        console.warn("Backend API not reachable. Creating task in local client memory store.", err);
+      }
+
+      if (!finalTask) {
+        finalTask = {
+          ...payload,
+          id: Date.now(),
+          auditLog: JSON.parse(payload.auditLog)
+        };
+      }
+
+      setTasks(prev => [finalTask, ...prev]);
+
+      // Inbound Log
+      const inboundLog = {
+        id: `glog-m-in-${Date.now()}`,
+        type: 'inbound_email',
+        timestamp: nowIso,
+        sender: testInboundEmailSender,
+        recipient: gatewayConfigs.inboundEmail,
+        text: `Subject: ${testInboundEmailSubject} | BodyPreview: ${testInboundEmailBody.substring(0, 50)}...`,
+        details: matchedRule 
+          ? `Rule Match ("${matchedRule.keyword}") -> Routed to ${matchedProj} (${matchedPriority})` 
+          : `No match template rule -> Defaulted to Enterprise Support (P3)`,
+        status: 'Processed'
+      };
+
+      // Outbox Auto confirmation email from Global "No Reply" address to end user
+      const outLog = {
+        id: `glog-m-out-${Date.now() + 1}`,
+        type: 'outbound_email',
+        timestamp: nowIso,
+        sender: gatewayConfigs.globalEmail,
+        recipient: testInboundEmailSender,
+        text: `[Enterprise Ticketing Workspace] Confirmation: Ticket #${ticketId} has been successfully registered. Status: Open. Priority: ${matchedPriority}. Our L1 triage specialist (Sarah Miller) has been assigned.`,
+        details: `Auto reply triggered by Inbound Ingestion. Successfully delivered via local mock SMTP outbound gateway server`,
+        status: 'Sent'
+      };
+
+      setGatewayLogs((prev: any) => [inboundLog, outLog, ...prev]);
+      setSimTerminalLogs(p => [
+        ...p,
+        `[${new Date().toLocaleTimeString()}] INBOUND ROUTING TASK COMPLETED`,
+        `[${new Date().toLocaleTimeString()}] TICKET ${ticketId} CREATED IN MY WORKBOOK DATABASE`,
+        `[${new Date().toLocaleTimeString()}] DISPATCHING CONFIRMATION EMAIL FROM: <${gatewayConfigs.globalEmail}> To: <${testInboundEmailSender}>`,
+        `[${new Date().toLocaleTimeString()}] OUTBOX DISPATCH COMPLETED SECURELY`
+      ]);
+      setIsProcessingMailSim(false);
+    }, 1200);
+  };
+
+  const handleSimulateInboundSms = async () => {
+    if (!testInboundSmsSender.trim()) {
+      alert("Please provide a sender mobile number.");
+      return;
+    }
+    setIsProcessingSmsSim(true);
+    setSimTerminalLogs(p => [...p, `[${new Date().toLocaleTimeString()}] Connecting to mobile network carrier gateway...`]);
+
+    setTimeout(async () => {
+      const fullText = testInboundSmsText.toLowerCase();
+      let matchedRule = gatewayConfigs.rules.find((r: any) => fullText.includes(r.keyword.toLowerCase()));
+      
+      const matchedProj = matchedRule ? matchedRule.project : 'Enterprise Support';
+      const matchedPriority = matchedRule ? matchedRule.priority : 'P3';
+
+      setSimTerminalLogs(p => [
+        ...p,
+        `[${new Date().toLocaleTimeString()}] Handshake success. Parsed SMS payload context...`,
+        `[${new Date().toLocaleTimeString()}] INBOUND SMS RECEIVED: From ${testInboundSmsSender}`,
+        `[${new Date().toLocaleTimeString()}] Text Content: "${testInboundSmsText}"`,
+        matchedRule 
+          ? `[${new Date().toLocaleTimeString()}] Keyword match: "${matchedRule.keyword}". Routing to: ${matchedProj} (${matchedPriority})`
+          : `[${new Date().toLocaleTimeString()}] No keyword pattern match! Defaulting: Enterprise Support (P3)`
+      ]);
+
+      const nowIso = new Date().toISOString();
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const ticketId = `INC-GW-${randomSuffix}`;
+
+      const payload = {
+        ticketId,
+        projectId: matchedProj,
+        supportLevel: 'L1' as SupportLevel,
+        priority: matchedPriority as Priority,
+        generationDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        responseDate: null,
+        closureDate: null,
+        status: 'Open' as TaskStatus,
+        userIntimated: true,
+        description: `[SMS Gateway Ingestion] From Mobile: ${testInboundSmsSender}\nMessage Content:\n${testInboundSmsText}`,
+        solution: '',
+        remarks: 'Auto-registered via Inbound Mobile Gateway REST API',
+        assignedTo: 'Sarah Miller',
+        createdBy: testInboundSmsSender,
+        resolutionDetails: '',
+        holdReason: '',
+        category: 'Software',
+        subcategory: 'Application Bug',
+        auditLog: JSON.stringify([
+          {
+            timestamp: nowIso,
+            user: 'Twilio SMS Handler',
+            action: 'Ticket Created',
+            details: `Automatically parsed text message. Created ticket ${ticketId}. Routed to ${matchedProj} at severity priority Level ${matchedPriority}.`
+          }
+        ])
+      };
+
+      let finalTask: any = null;
+      try {
+        const response = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          finalTask = await response.json();
+          finalTask.auditLog = finalTask.auditLog ? (typeof finalTask.auditLog === 'string' ? JSON.parse(finalTask.auditLog) : finalTask.auditLog) : [];
+        }
+      } catch (err) {
+        console.warn("Backend API not reachable. Creating task in local client memory store.", err);
+      }
+
+      if (!finalTask) {
+        finalTask = {
+          ...payload,
+          id: Date.now(),
+          auditLog: JSON.parse(payload.auditLog)
+        };
+      }
+
+      setTasks(prev => [finalTask, ...prev]);
+
+      // Inbound Log
+      const inboundLog = {
+        id: `glog-s-in-${Date.now()}`,
+        type: 'inbound_sms',
+        timestamp: nowIso,
+        sender: testInboundSmsSender,
+        recipient: gatewayConfigs.smsTwilioPhone,
+        text: testInboundSmsText,
+        details: matchedRule 
+          ? `Rule Match ("${matchedRule.keyword}") -> Routed to ${matchedProj} (${matchedPriority})` 
+          : `No match template rule -> Defaulted to Enterprise Support (P3)`,
+        status: 'Processed'
+      };
+
+      // Outbox Auto confirmation SMS
+      const outLog = {
+        id: `glog-s-out-${Date.now() + 1}`,
+        type: 'outbound_sms',
+        timestamp: nowIso,
+        sender: gatewayConfigs.smsTwilioPhone,
+        recipient: testInboundSmsSender,
+        text: `UVCE Support: Ticket #${ticketId} created. Priority: ${matchedPriority}. Triage team has been notified.`,
+        details: `Twilio API Hook confirmation dispatched to cellular gateway bearer`,
+        status: 'Sent'
+      };
+
+      setGatewayLogs((prev: any) => [inboundLog, outLog, ...prev]);
+      setSimTerminalLogs(p => [
+        ...p,
+        `[${new Date().toLocaleTimeString()}] INBOUND ROUTING TASK COMPLETED`,
+        `[${new Date().toLocaleTimeString()}] TICKET ${ticketId} CREATED IN MY WORKBOOK DATABASE`,
+        `[${new Date().toLocaleTimeString()}] DISPATCHING CONFIRMATION SMS FROM: ${gatewayConfigs.smsTwilioPhone} To: ${testInboundSmsSender}`,
+        `[${new Date().toLocaleTimeString()}] MOBILE RECIPIENT NOTIFICATION DELIVERED`
+      ]);
+      setIsProcessingSmsSim(false);
+    }, 1200);
   };
 
   // --- Handlers ---
@@ -6818,6 +7166,20 @@ Guidelines:
                         </div>
                         <div className="flex items-center gap-2">
                           <button 
+                            onClick={() => setIsEmailSmsGatewayOpen(!isEmailSmsGatewayOpen)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
+                              isEmailSmsGatewayOpen 
+                                ? "bg-amber-600/15 text-amber-400 border-amber-500/35 hover:bg-amber-600/25" 
+                                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                            )}
+                            title="Interactive Inbound Email & SMS Integration Terminal"
+                          >
+                            <Mail className={cn("w-3.5 h-3.5", isEmailSmsGatewayOpen && "text-amber-400 animate-pulse")} />
+                            <span>{"Email & SMS Integration Gateway"}</span>
+                          </button>
+
+                          <button 
                             onClick={() => setIsInlineAnalyticsOpen(!isInlineAnalyticsOpen)}
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all duration-300 cursor-pointer select-none",
@@ -7759,6 +8121,506 @@ Guidelines:
                                         ))
                                       )}
                                     </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <AnimatePresence mode="wait">
+                        {isEmailSmsGatewayOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0, y: -10 }}
+                            animate={{ opacity: 1, height: 'auto', y: 0 }}
+                            exit={{ opacity: 0, height: 0, y: -10 }}
+                            className="bg-slate-900 border border-amber-500/25 p-5 rounded-2xl mb-4 space-y-4 overflow-hidden shadow-xl shadow-black/30 select-text"
+                          >
+                            {/* Header Row */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-805 pb-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  <Mail className="w-4 h-4" />
+                                </div>
+                                <div className="text-left">
+                                  <h3 className="text-xs font-black text-white uppercase tracking-wider">Email &amp; SMS Integration Gateway Center</h3>
+                                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Global Mailbox listener, REST SMS Webhooks &amp; Automated Outbound Delivery notifications</p>
+                                </div>
+                              </div>
+
+                              {/* Tabs Selector */}
+                              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                                {(['simulator', 'rules', 'logs', 'sts-guide'] as const).map(tab => {
+                                  const labels = {
+                                    simulator: 'Interactive Simulator',
+                                    rules: 'Router Rules Engine',
+                                    logs: 'Inbound/Outbound Logs',
+                                    'sts-guide': 'STS & MySQL Setup Hub'
+                                  };
+                                  return (
+                                    <button
+                                      key={tab}
+                                      onClick={() => setActiveGatewayTab(tab)}
+                                      className={cn(
+                                        "px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer select-none",
+                                        activeGatewayTab === tab 
+                                          ? "bg-amber-500/15 text-amber-400 border-amber-500/20" 
+                                          : "text-slate-400 hover:text-slate-200"
+                                      )}
+                                    >
+                                      {labels[tab]}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* TAB 1: Simulator */}
+                            {activeGatewayTab === 'simulator' && (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                  {/* Left: Email Simulation Box */}
+                                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3.5">
+                                    <div className="flex items-center gap-1.5 text-cyan-400">
+                                      <Mail className="w-3.5 h-3.5" />
+                                      <span className="text-[10px] uppercase font-black tracking-widest text-slate-200">Global Inbound Email Exchanger</span>
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 font-extrabold uppercase select-none leading-relaxed">
+                                      Sends an email to the global mailbox <span className="text-slate-300 font-mono text-xs">{gatewayConfigs.inboundEmail}</span>. The parser will automatically map the sender's address to create a ticket, routing it based on subject keyword matching rules.
+                                    </p>
+
+                                    <div className="space-y-3">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
+                                        <div className="text-left">
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Sender Email</label>
+                                          <input 
+                                            type="email" 
+                                            value={testInboundEmailSender}
+                                            onChange={e => setTestInboundEmailSender(e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white font-mono focus:border-amber-500/40 outline-none"
+                                            placeholder="user@kaust.edu"
+                                          />
+                                        </div>
+                                        <div className="text-left">
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Email Recipient</label>
+                                          <input 
+                                            type="text" 
+                                            disabled
+                                            value={gatewayConfigs.inboundEmail}
+                                            className="w-full bg-slate-900/50 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-slate-500 font-mono select-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="text-left">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Subject Line (Try "database", "server", "login", "network", etc.)</label>
+                                        <input 
+                                          type="text" 
+                                          value={testInboundEmailSubject}
+                                          onChange={e => setTestInboundEmailSubject(e.target.value)}
+                                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white font-bold outline-none focus:border-amber-500/40"
+                                        />
+                                      </div>
+
+                                      <div className="text-left">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Mail Body text payload</label>
+                                        <textarea 
+                                          value={testInboundEmailBody}
+                                          onChange={e => setTestInboundEmailBody(e.target.value)}
+                                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-slate-300 font-medium h-16 outline-none focus:border-amber-500/40 resize-none"
+                                        />
+                                      </div>
+
+                                      <button
+                                        onClick={handleSimulateInboundEmail}
+                                        disabled={isProcessingMailSim}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all shadow"
+                                      >
+                                        {isProcessingMailSim ? (
+                                          <span className="flex items-center gap-2">
+                                            <span className="w-2.5 h-2.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Ingesting SMTP Packet...
+                                          </span>
+                                        ) : (
+                                          <>
+                                            <Send className="w-3.5 h-3.5 text-indigo-200" />
+                                            <span>Simulate Inbound SMTP Mail Delivery</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Right: SMS Simulation Box */}
+                                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3.5">
+                                    <div className="flex items-center gap-1.5 text-amber-500">
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                      <span className="text-[10px] uppercase font-black tracking-widest text-slate-200">REST SMS Cellular Webhook</span>
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 font-extrabold uppercase select-none leading-relaxed">
+                                      Sends a cellular SMS to the support hotline pool <span className="text-slate-300 font-mono text-xs">{gatewayConfigs.smsTwilioPhone}</span> to emulate mobile user incident requests. The router parses keywords instantly into MySQL data rows.
+                                    </p>
+
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="text-left">
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Sender Mobile Number</label>
+                                          <input 
+                                            type="text" 
+                                            value={testInboundSmsSender}
+                                            onChange={e => setTestInboundSmsSender(e.target.value)}
+                                            className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white font-mono focus:border-amber-500/40 outline-none"
+                                            placeholder="+15551234"
+                                          />
+                                        </div>
+                                        <div className="text-left">
+                                          <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Hotline Gateway Receiver</label>
+                                          <input 
+                                            type="text" 
+                                            disabled
+                                            value={gatewayConfigs.smsTwilioPhone}
+                                            className="w-full bg-slate-900/50 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-slate-500 font-mono select-none"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="text-left pt-1">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">SMS text content (Keyword mapping active)</label>
+                                        <textarea 
+                                          value={testInboundSmsText}
+                                          onChange={e => setTestInboundSmsText(e.target.value)}
+                                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-slate-300 font-medium h-[65px] outline-none focus:border-amber-500/40 resize-none"
+                                          placeholder="My corporate laptop keeps blue-screening."
+                                        />
+                                      </div>
+
+                                      <button
+                                        onClick={handleSimulateInboundSms}
+                                        disabled={isProcessingSmsSim}
+                                        className="w-full bg-amber-600 hover:bg-amber-500 text-white font-black text-[10px] uppercase tracking-wider py-2 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all shadow"
+                                      >
+                                        {isProcessingSmsSim ? (
+                                          <span className="flex items-center gap-1">
+                                            <span className="w-2.5 h-2.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Establishing Cellular Carrier Hook...
+                                          </span>
+                                        ) : (
+                                          <>
+                                            <Send className="w-3.5 h-3.5 text-amber-200" />
+                                            <span>Simulate Gateway SMS Delivery</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Logger terminal window */}
+                                <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl text-left">
+                                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <Terminal className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                                      <span className="text-[9px] uppercase font-black text-slate-400 tracking-widest font-mono">Live Interactive Gateway Listener Log Stream</span>
+                                    </div>
+                                    <button 
+                                      onClick={() => setSimTerminalLogs([])}
+                                      className="text-[8px] text-slate-500 hover:text-slate-300 font-mono uppercase font-black tracking-wider cursor-pointer"
+                                    >
+                                      Clear terminal
+                                    </button>
+                                  </div>
+                                  <div className="h-28 overflow-y-auto font-mono text-[9px] text-slate-300 space-y-1.5 select-text custom-scrollbar">
+                                    {simTerminalLogs.length === 0 ? (
+                                      <div className="text-slate-600 italic select-none">Terminal idle. Dispatch a mock Inbound SMTP mail or SMS gateway signal above...</div>
+                                    ) : (
+                                      simTerminalLogs.map((log, i) => (
+                                        <div key={i} className="leading-relaxed border-l-2 border-indigo-500/25 pl-2">{log}</div>
+                                      ))
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* TAB 2: Rules */}
+                            {activeGatewayTab === 'rules' && (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                  {/* Append Rule Form */}
+                                  <div className="lg:col-span-5 bg-slate-950/60 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">
+                                    <h4 className="text-[10px] text-slate-300 font-black uppercase tracking-widest text-left mb-2">Append Inbound Routing Rule</h4>
+                                    
+                                    <div className="space-y-3 text-left">
+                                      <div className="text-left">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1 font-sans">Subject Keyword</label>
+                                        <input 
+                                          type="text"
+                                          value={newRuleKeyword}
+                                          onChange={e => setNewRuleKeyword(e.target.value)}
+                                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-[10px] text-white outline-none focus:border-amber-500/40"
+                                          placeholder="e.g. database, password, mailbox"
+                                        />
+                                        <span className="text-[7px] text-slate-500 font-bold block mt-1 uppercase">Case-insensitive. Scans mail subject and body text to route dynamically.</span>
+                                      </div>
+
+                                      <div className="text-left">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1">Destination Project Group</label>
+                                        <select
+                                          value={newRuleProject}
+                                          onChange={e => setNewRuleProject(e.target.value)}
+                                          className="w-full bg-slate-900 border border-slate-800 text-[10px] text-white rounded px-2.5 py-1.5 outline-none font-bold cursor-pointer"
+                                        >
+                                          <option value="">-- Choose Project --</option>
+                                          {PROJECTS_LIST.map(p => (
+                                            <option key={p} value={p}>{p}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div className="text-left">
+                                        <label className="block text-[8px] uppercase tracking-widest font-black text-slate-500 mb-1 font-sans">Priority Level Alert Scale</label>
+                                        <select
+                                          value={newRulePriority}
+                                          onChange={e => setNewRulePriority(e.target.value as any)}
+                                          className="w-full bg-slate-900 border border-slate-800 text-[10px] text-white rounded px-2.5 py-1.5 outline-none font-bold cursor-pointer font-sans"
+                                        >
+                                          <option value="P1">P1 - Critical Priority</option>
+                                          <option value="P2">P2 - High Priority</option>
+                                          <option value="P3">P3 - Medium Priority</option>
+                                          <option value="P4">P4 - Low Priority</option>
+                                        </select>
+                                      </div>
+
+                                      <button
+                                        onClick={() => {
+                                          if (!newRuleKeyword.trim()) {
+                                            alert("Please enter a keyword.");
+                                            return;
+                                          }
+                                          if (!newRuleProject) {
+                                            alert("Please select a target project.");
+                                            return;
+                                          }
+                                          const isDup = gatewayConfigs.rules.find((r: any) => r.keyword.toLowerCase() === newRuleKeyword.trim().toLowerCase());
+                                          if (isDup) {
+                                            alert("This keyword route rule already exists.");
+                                            return;
+                                          }
+                                          const newRuleObj = {
+                                            id: `rule-${Date.now()}`,
+                                            keyword: newRuleKeyword.trim().toLowerCase(),
+                                            project: newRuleProject,
+                                            priority: newRulePriority
+                                          };
+                                          setGatewayConfigs((prev: any) => ({
+                                            ...prev,
+                                            rules: [...prev.rules, newRuleObj]
+                                          }));
+                                          setNewRuleKeyword('');
+                                        }}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-wider py-1.5 rounded-lg cursor-pointer shadow mt-2"
+                                      >
+                                        Add Routing Association Rule
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Rules Table */}
+                                  <div className="lg:col-span-7 bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-left">
+                                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Active Keyword Keyword Routing Rules Table</span>
+                                      <span className="text-[8px] font-mono text-slate-500 uppercase font-black">{gatewayConfigs.rules.length} Active Rules</span>
+                                    </div>
+
+                                    <div className="max-h-[220px] overflow-y-auto space-y-2 custom-scrollbar">
+                                      {gatewayConfigs.rules.map((rule: any) => (
+                                        <div key={rule.id} className="bg-slate-900 border border-slate-805 p-2.5 rounded-lg flex items-center justify-between text-left">
+                                          <div>
+                                            <div className="flex items-center gap-1.5 text-left">
+                                              <span className="text-amber-400 font-mono text-[11px] font-black">"{rule.keyword}"</span>
+                                              <span className="text-[8px] tracking-widest uppercase font-extrabold text-slate-500">subject word</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-300 mt-1 uppercase font-bold leading-none">
+                                              Reroutes to: <span className="text-white bg-slate-950 px-1 py-0.5 rounded border border-slate-800 text-[9px] font-mono">{rule.project}</span>
+                                            </p>
+                                          </div>
+
+                                          <div className="flex items-center gap-3 shrink-0">
+                                            <span 
+                                              className="text-[8px] font-mono font-black border uppercase px-1.5 py-0.5 rounded leading-none"
+                                              style={{
+                                                borderColor: PRIORITY_COLORS[rule.priority as Priority] + '50',
+                                                color: PRIORITY_COLORS[rule.priority as Priority],
+                                                backgroundColor: PRIORITY_COLORS[rule.priority as Priority] + '12'
+                                              }}
+                                            >
+                                              {rule.priority}
+                                            </span>
+                                            <button
+                                              onClick={() => {
+                                                setGatewayConfigs((prev: any) => ({
+                                                  ...prev,
+                                                  rules: prev.rules.filter((r: any) => r.id !== rule.id)
+                                                }));
+                                              }}
+                                              className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-950 border border-transparent hover:border-slate-800 transition-all cursor-pointer"
+                                              title="Delete routing rule"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* TAB 3: Logs */}
+                            {activeGatewayTab === 'logs' && (
+                              <div className="space-y-4">
+                                <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
+                                  <div className="flex items-center justify-between border-b border-slate-805 pb-2.5 mb-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <Settings className="w-3.5 h-3.5 text-zinc-400" />
+                                      <span className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Gateway Dispatch Log Ledger (Inbound &amp; Outbound)</span>
+                                    </div>
+                                    <button 
+                                      onClick={() => setGatewayLogs([])}
+                                      className="text-[9px] bg-slate-900 border border-slate-800 hover:border-slate-700 font-extrabold font-mono text-slate-400 hover:text-white px-2 py-0.5 rounded uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Clear Log History
+                                    </button>
+                                  </div>
+
+                                  <div className="max-h-[300px] overflow-y-auto space-y-2.5 custom-scrollbar text-left pr-1">
+                                    {gatewayLogs.length === 0 ? (
+                                      <div className="p-12 text-center text-[10px] font-black uppercase text-slate-600">
+                                        No log records found. Simulate incident inbounds to dump telemetry trace.
+                                      </div>
+                                    ) : (
+                                      gatewayLogs.map((log: any) => {
+                                        const isInbound = log.type.startsWith('inbound');
+                                        const isEmail = log.type.includes('email');
+                                        return (
+                                          <div key={log.id} className="bg-slate-905 border border-slate-850 p-3 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-2 text-left relative overflow-hidden">
+                                            {/* Type indicator vertical band */}
+                                            <div 
+                                              className={cn(
+                                                "absolute left-0 top-0 bottom-0 w-1",
+                                                isEmail 
+                                                  ? (isInbound ? "bg-cyan-500" : "bg-emerald-500") 
+                                                  : (isInbound ? "bg-amber-500" : "bg-purple-500")
+                                              )}
+                                            />
+                                            
+                                            <div className="pl-2.5 space-y-1">
+                                              <div className="flex items-center gap-2">
+                                                <span 
+                                                  className={cn(
+                                                    "text-[8px] px-1.5 py-0.5 rounded uppercase tracking-widest font-extrabold border leading-none font-mono",
+                                                    isEmail 
+                                                      ? (isInbound ? "bg-cyan-950/40 text-cyan-400 border-cyan-900/40" : "bg-emerald-950/40 text-emerald-400 border-emerald-900/40")
+                                                      : (isInbound ? "bg-amber-950/40 text-amber-400 border-amber-900/40" : "bg-purple-950/40 text-purple-400 border-purple-900/40")
+                                                  )}
+                                                >
+                                                  {log.type.replace('_', ' ')}
+                                                </span>
+                                                <span className="text-[8px] font-mono font-bold text-slate-500">
+                                                  {format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss')}
+                                                </span>
+                                              </div>
+
+                                              <p className="text-[9px] font-bold text-slate-400 font-mono">
+                                                {isInbound ? `SENDER: <${log.sender}> -> DEST: <${log.recipient}>` : `FROM: <${log.sender}> -> RECIPIENT: <${log.recipient}>`}
+                                              </p>
+                                              
+                                              <p className="text-[10px] text-white font-medium italic break-words pr-2">
+                                                "{log.text}"
+                                              </p>
+                                            </div>
+
+                                            <div className="shrink-0 flex flex-col items-start md:items-end pl-2.5 md:pl-0 border-t md:border-t-0 border-slate-800/50 pt-2 md:pt-0">
+                                              <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider">{log.details}</span>
+                                              <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1 mt-0.5 font-mono">
+                                                <Check className="w-3 h-3 strike-2" />
+                                                {log.status}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* TAB 4: STS Guide */}
+                            {activeGatewayTab === 'sts-guide' && (
+                              <div className="space-y-4 text-left">
+                                <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-4">
+                                  <div>
+                                    <h4 className="text-[11px] text-slate-200 font-black uppercase tracking-widest flex items-center gap-1">
+                                      <Server className="w-3.5 h-3.5 text-amber-400" />
+                                      Deployment and Stand-Alone Testing Guide: STS &amp; MySQL
+                                    </h4>
+                                    <p className="text-[9px] text-slate-400 font-medium leading-relaxed uppercase mt-1">
+                                      Since you do not have SMTP or real-world cellular gateways configured in your local Spring Tool Suite (STS) development machine, you can test the entire workflow seamlessly without changing any ticketing business logic by implementing mock sandboxes!
+                                    </p>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Sub-Guide 1: Inbound Processing */}
+                                    <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl space-y-2.5">
+                                      <span className="text-[10px] uppercase font-black text-amber-400 tracking-wider">1. Inbound Parsing Daemon in Spring Boot</span>
+                                      <p className="text-[9px] text-slate-300 leading-relaxed">
+                                        Use a Spring Integration IMAP adapter or standard Java Mail Sender cron job scheduled every 1 minute. Connect it to a secure Gmail/Outlook "no-reply" inbox, then read fresh messages, parse senders' address, match keywords, and write directly into the MySQL support task schema!
+                                      </p>
+                                      
+                                      <div className="bg-slate-950 p-2 rounded-lg text-[8px] font-mono text-slate-300 overflow-x-auto select-all max-h-[80px]">
+{`@Scheduled(fixedDelay = 60000)
+public void pollInboundEmails() {
+    Message[] messages = mailFolder.getMessages();
+    for (Message msg : messages) {
+        String from = msg.getFrom()[0].toString();
+        String subject = msg.getSubject();
+        // Route category based on keywords...
+        SupportTask task = new SupportTask();
+        task.setCreatedBy(from);
+        task.setDescription("[SMTP GW Ingest] " + subject);
+        taskRepository.save(task); // Write directly to MySQL row!
+    }
+}`}
+                                      </div>
+                                      <p className="text-[8px] text-slate-500 uppercase font-black leading-none">* No schema modifications requested. Setups perfectly align with standard tables</p>
+                                    </div>
+
+                                    {/* Sub-Guide 2: Outbound Notifications */}
+                                    <div className="bg-slate-900 border border-slate-800 p-3.5 rounded-xl space-y-2.5">
+                                      <span className="text-[10px] uppercase font-black text-emerald-400 tracking-wider">2. MailHog / GreenMail Sandbox for SMTP/SMS testing</span>
+                                      <p className="text-[9px] text-slate-300 leading-relaxed">
+                                        To preview outbound notifications on status change without hardcoding actual SMTP credentials or paying for SMS gateway credit, spin up an offline open-source SMTP server such as <strong>GreenMail</strong> or <strong>MailHog</strong>. Modify your Spring Boot application properties to forward target mail, and preview dispatches in their local web inbox!
+                                      </p>
+
+                                      <div className="bg-slate-950 p-2.5 rounded-lg text-[8px] font-mono text-slate-300 overflow-x-auto">
+{`# application.properties (MailHog sandbox config target)
+spring.mail.host=localhost
+spring.mail.port=1025
+spring.mail.properties.mail.smtp.auth=false
+spring.mail.properties.mail.smtp.starttls.enable=false`}
+                                      </div>
+                                      <p className="text-[8px] text-slate-500 uppercase font-black leading-none">* Easily preview formatted emails sent immediately to end users!</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-slate-900 border border-amber-500/20 p-3 rounded-lg flex items-center gap-2.5">
+                                    <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                                    <p className="text-[9px] text-slate-300 leading-snug">
+                                      <strong>Design Decoupling Promise:</strong> This dashboard control center emulates exactly how your STS Spring Boot service handles cellular SMS and POP3/IMAP SMTP loops. All mock events directly trigger task writes/updates via the REST API to guarantee exact end-to-end integration mapping. No application variables need to be exposed!
+                                    </p>
                                   </div>
                                 </div>
                               </div>
