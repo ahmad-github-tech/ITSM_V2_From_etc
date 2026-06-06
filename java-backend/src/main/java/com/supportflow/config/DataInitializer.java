@@ -32,9 +32,45 @@ public class DataInitializer {
     @Autowired
     private CategoryMappingRepository categoryMappingRepository;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @Bean
     public CommandLineRunner initData() {
         return args -> {
+            // Self-repair MySQL database users table columns if Hibernate ddl-auto didn't do it
+            try {
+                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL");
+                System.out.println("Ran raw SQL migration: email column ensured on 'users' table.");
+            } catch (Exception e) {
+                // Column probably already exists or table doesn't exist yet
+            }
+
+            try {
+                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN mobile VARCHAR(255) NULL");
+                System.out.println("Ran raw SQL migration: mobile column ensured on 'users' table.");
+            } catch (Exception e) {
+                // Column probably already exists
+            }
+
+            try {
+                jdbcTemplate.execute("ALTER TABLE users ADD COLUMN gateway_active_notify TINYINT(1) DEFAULT 1 NULL");
+                System.out.println("Ran raw SQL migration: gateway_active_notify column ensured on 'users' table.");
+            } catch (Exception e) {
+                // Column probably already exists
+            }
+
+            // If table has existing records without emails or mobiles, update them
+            try {
+                jdbcTemplate.update("UPDATE users SET email = 'admin@enterprise.com', mobile = '+15550001', gateway_active_notify = 1 WHERE id = 'Admin' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'john.doe@enterprise.com', mobile = '+15550002', gateway_active_notify = 1 WHERE id = 'John.D' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'sarah.miller@enterprise.com', mobile = '+15550003', gateway_active_notify = 1 WHERE id = 'Sarah.M' AND (email IS NULL OR email = '')");
+                jdbcTemplate.update("UPDATE users SET email = 'alpha.support@enterprise.com', mobile = '+15550004', gateway_active_notify = 1 WHERE id = 'Support.Alpha' AND (email IS NULL OR email = '')");
+                System.out.println("Seeded emails/mobiles for default administrators and support staff.");
+            } catch (Exception e) {
+                System.out.println("Skipped default user detail update: " + e.getMessage());
+            }
+
             if (categoryMappingRepository.count() == 0) {
                 System.out.println("Initializing sample categories and subcategories...");
                 List<CategoryMapping> mappings = Arrays.asList(

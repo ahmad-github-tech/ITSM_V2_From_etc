@@ -193,6 +193,21 @@ export default function App() {
 
       await Promise.all([fetchTasks(), fetchProjects(), fetchUsers(), fetchCategories()]);
       if (fetchedConfig) {
+        if (!fetchedConfig.domainRules) {
+          fetchedConfig.domainRules = [];
+        }
+        const hasKaustCom = fetchedConfig.domainRules.some((d: any) => d.domain === 'kaust.com');
+        const hasKaustEdu = fetchedConfig.domainRules.some((d: any) => d.domain === 'kaust.edu');
+        const hasGmailCom = fetchedConfig.domainRules.some((d: any) => d.domain === 'gmail.com');
+        if (!hasKaustCom) {
+          fetchedConfig.domainRules.push({ id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' });
+        }
+        if (!hasKaustEdu) {
+          fetchedConfig.domainRules.push({ id: 'dom-2-edu', domain: 'kaust.edu', project: 'KAUST', priority: 'P2' });
+        }
+        if (!hasGmailCom) {
+          fetchedConfig.domainRules.push({ id: 'dom-3', domain: 'gmail.com', project: 'GMAIL', priority: 'P3' });
+        }
         setGatewayConfigs(fetchedConfig);
       }
       if (fetchedEmailConfig) {
@@ -1762,11 +1777,7 @@ Signatures Registered:
   const [newStkProj, setNewStkProj] = useState('');
 
   const [gatewayConfigs, setGatewayConfigs] = useState(() => {
-    const saved = localStorage.getItem('sflow_gateway_configs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return {
+    let baseConfigs: any = {
       globalEmail: 'no-reply@enterprise.com',
       inboundEmail: 'support-gateway@enterprise.com',
       smtpHost: 'mail.smtp.enterprise.com',
@@ -1777,8 +1788,9 @@ Signatures Registered:
       smsChannelMode: 'Active' as 'Active' | 'Hold' | 'Stop',
       domainRules: [
         { id: 'dom-1', domain: 'rnlic.com', project: 'RNLIC', priority: 'P1' },
-         { id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' },
-         { id: 'dom-3', domain: 'gmail.com', project: 'GMAIL', priority: 'P3' }
+        { id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' },
+        { id: 'dom-2-edu', domain: 'kaust.edu', project: 'KAUST', priority: 'P2' },
+        { id: 'dom-3', domain: 'gmail.com', project: 'GMAIL', priority: 'P3' }
       ],
       projectStakeholders: [
         { id: 'stk-1', name: 'Manager Dave', email: 'dave.manager@rnlic.com', mobile: '+15551005', projectId: 'RNLIC', emailActive: true, smsActive: true },
@@ -1793,6 +1805,35 @@ Signatures Registered:
         { id: 'rule-6', keyword: 'laptop', project: 'Enterprise Support', priority: 'P4' }
       ]
     };
+
+    const saved = localStorage.getItem('sflow_gateway_configs');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          baseConfigs = { ...baseConfigs, ...parsed };
+        }
+      } catch (e) {}
+    }
+
+    // Force-ensure standard rules exist in domainRules
+    if (!baseConfigs.domainRules) {
+      baseConfigs.domainRules = [];
+    }
+    const hasKaustCom = baseConfigs.domainRules.some((d: any) => d.domain === 'kaust.com');
+    const hasKaustEdu = baseConfigs.domainRules.some((d: any) => d.domain === 'kaust.edu');
+    const hasGmailCom = baseConfigs.domainRules.some((d: any) => d.domain === 'gmail.com');
+    if (!hasKaustCom) {
+      baseConfigs.domainRules.push({ id: 'dom-2', domain: 'kaust.com', project: 'KAUST', priority: 'P2' });
+    }
+    if (!hasKaustEdu) {
+      baseConfigs.domainRules.push({ id: 'dom-2-edu', domain: 'kaust.edu', project: 'KAUST', priority: 'P2' });
+    }
+    if (!hasGmailCom) {
+      baseConfigs.domainRules.push({ id: 'dom-3', domain: 'gmail.com', project: 'GMAIL', priority: 'P3' });
+    }
+
+    return baseConfigs;
   });
 
   const [gatewayLogs, setGatewayLogs] = useState(() => {
